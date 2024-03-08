@@ -23,6 +23,14 @@ typedef struct mv_instruction
 } mv_instruction;
 
 /**
+ * @brief Convert a set of coords into one uint32_t
+ *
+ * @param x The x coordinate
+ * @param y The y coordinate
+ */
+uint32_t mv_coords_to_u32(int16_t x, int16_t y);
+
+/**
  * @brief Process an instruction
  *
  * @param instruction The instruction to process

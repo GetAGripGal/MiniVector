@@ -49,7 +49,7 @@ void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color prima
 
     glBindVertexArray(renderer->vao);
     glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(mv_point) * display->point_count, display->points, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(mv_point) * display->point_count, display->points, GL_DYNAMIC_DRAW);
     glDrawArrays(GL_LINES, 0, display->point_count);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -79,7 +79,7 @@ static void create_buffers(mv_renderer *renderer)
 
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(mv_point), (void *)0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);

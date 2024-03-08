@@ -18,7 +18,7 @@ typedef struct mv_point
  */
 typedef struct mv_display
 {
-    mv_point points[MV_MAX_DISPLAY_POINTS];
+    mv_point *points;
     uint16_t point_count;
 } mv_display;
 

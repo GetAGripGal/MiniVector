@@ -10,6 +10,7 @@
 mv_display *mv_create_display()
 {
     mv_display *display = malloc(sizeof(mv_display));
+    display->points = (mv_point *)calloc(MV_MAX_DISPLAY_POINTS, sizeof(mv_point));
     display->point_count = 0;
     return display;
 }
@@ -33,6 +34,22 @@ void mv_set_line_width(mv_display *display, uint16_t width)
     }
 
     glLineWidth(width);
+}
+
+/**
+ * @brief Add a point to the display
+ *
+ * @param display The display to add a point to
+ * @param x The x coordinate of the point
+ * @param y The y coordinate of the poiint
+ */
+void mv_add_point(mv_display *display, int16_t x, int16_t y)
+{
+    if (display->point_count >= MV_MAX_DISPLAY_POINTS)
+    {
+        return;
+    }
+    display->points[display->point_count++] = (mv_point){(float)x, (float)y};
 }
 
 /**
@@ -62,5 +79,6 @@ void mv_draw_line(mv_display *display, int16_t x0, int16_t y0, int16_t x1, int16
  */
 void mv_clear_display(mv_display *display)
 {
+    display->points = (mv_point *)calloc(MV_MAX_DISPLAY_POINTS, sizeof(mv_point));
     display->point_count = 0;
 }

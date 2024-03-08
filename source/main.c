@@ -10,6 +10,7 @@
 #include "window.h"
 #include "display.h"
 #include "renderer.h"
+#include "instruction.h"
 #include "log.h"
 #include "state.h"
 
@@ -32,38 +33,56 @@ int32_t main(int32_t argc, char *argv[])
     // Draw a little smily face :)
 
     // The face in lines
-    mv_draw_line(display, 100, 100, 120, 100);
-    mv_draw_line(display, 100, 100, 95, 95);
-    mv_draw_line(display, 120, 100, 125, 95);
-    mv_draw_line(display, 105, 90, 105, 80);
-    mv_draw_line(display, 115, 90, 115, 80);
-
-    // Draw hello world
-
-    // H
-    mv_draw_line(display, 10, 10, 10, 20);
-    mv_draw_line(display, 10, 15, 15, 15);
-    mv_draw_line(display, 15, 10, 15, 20);
-
-    // E
-    mv_draw_line(display, 20, 10, 20, 20);
-    mv_draw_line(display, 20, 11, 25, 11);
-    mv_draw_line(display, 20, 15, 25, 15);
-    mv_draw_line(display, 20, 19, 25, 19);
-
-    // L
-    mv_draw_line(display, 30, 10, 30, 20);
-    mv_draw_line(display, 30, 19, 35, 19);
-
-    // L
-    mv_draw_line(display, 40, 10, 40, 20);
-    mv_draw_line(display, 40, 19, 45, 19);
-
-    // O
-    mv_draw_line(display, 50, 10, 50, 20);
-    mv_draw_line(display, 50, 11, 55, 11);
-    mv_draw_line(display, 55, 10, 55, 20);
-    mv_draw_line(display, 50, 19, 55, 19);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(100, 100),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(120, 100),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(100, 100),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(95, 95),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(120, 100),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(125, 95),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(105, 90),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(105, 80),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(115, 90),
+                           },
+                           display);
+    mv_process_instruction((mv_instruction){
+                               .type = MV_INSTRUCTION_SET_POINT,
+                               .data = mv_coords_to_u32(115, 80),
+                           },
+                           display);
 
     /// Create the renderer
     mv_renderer *renderer = mv_create_renderer(display);
