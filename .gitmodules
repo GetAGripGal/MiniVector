@@ -1,0 +1,3 @@
+[submodule "vendor/HandmadeMath"]
+	path = vendor/HandmadeMath
+	url = https://github.com/HandmadeMath/HandmadeMath.git
