@@ -1,5 +1,21 @@
 # MiniVector
-A configurable XY vector display emulator
+A configurable XY vector display simulator
+
+## TODO
+* Open port for streaming point data
+* Add shader to simulate a vector display
+
+## Usage
+```
+Usage: microvector [options]
+  Options:
+  -w, --window <width> <height>     Set the window size
+  -r, --resolution <width> <height> Set the resolution
+  -p, --primary <color_hex>         Set the primary color
+  -s, --secondary <color_hex>       Set the secondary color
+  -l, --line-width <width>          Set the line width
+  -h, --help                        Show this help message
+```
 
 ## Building
 This repo uses premake. The additional libraries are stored in vendor.
@@ -23,16 +39,4 @@ Then build it using make
 ```bash
 cd build
 make
-```
-
-## Usage
-```
-Usage: microvector [options]
-  Options:
-  -w, --window <width> <height>     Set the window size
-  -r, --resolution <width> <height> Set the resolution
-  -p, --primary <color_hex>         Set the primary color
-  -s, --secondary <color_hex>       Set the secondary color
-  -l, --line-width <width>          Set the line width
-  -h, --help                        Show this help message
 ```
