@@ -28,6 +28,13 @@ typedef struct mv_display
 mv_display *mv_create_display();
 
 /**
+ * @brief Destroy the display
+ *
+ * @param display The display to destroy
+ */
+void mv_destroy_display(mv_display *display);
+
+/**
  * @brief Set the line width
  *
  * @param display The display to set the line width

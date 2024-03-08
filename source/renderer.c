@@ -39,7 +39,7 @@ void mv_renderer_set_projection(mv_renderer *renderer, float width, float height
  * @param primary The color of the background
  * @param secondary The color of the lines
  */
-void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color primary, mv_color secondary)
+void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color_t primary, mv_color_t secondary)
 {
     glClearColor(((float)primary.r / 255.0f), ((float)primary.g / 255.0f), ((float)primary.b / 255.0f), 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -89,25 +89,16 @@ static void create_buffers(mv_renderer *renderer)
     renderer->vbo = vbo;
 }
 
-// /**
-//  * @brief Create the orthographic projection
-//  * @param left The left side of the projection
-//  * @param right The right side of the projection
-//  * @param bottom The bottom side of the projection
-//  * @param top The top side of the projection
-//  * @param near The near side of the projection
-//  * @param far The far side of the projection
-//  * @return The orthographic projection
-//  */
-// static float *orthographic(float left, float right, float bottom, float top, float near, float far)
-// {
-//     float *result = calloc(4 * 4, sizeof(float));
-//     result[0 + 0 * 4] = 2.0f / (right - left);
-//     result[1 + 1 * 4] = 2.0f / (top - bottom);
-//     result[2 + 2 * 4] = -2.0f / (far - near);
-//     result[3 + 0 * 4] = -(right + left) / (right - left);
-//     result[3 + 1 * 4] = -(top + bottom) / (top - bottom);
-//     result[3 + 2 * 4] = -(far + near) / (far - near);
-//     result[3 + 3 * 4] = 1.0f;
-//     return result;
-// }
+/**
+ * @brief Clear the buffers for the renderer
+ *
+ * @param renderer The renderer
+ */
+void mv_clear_buffers(mv_renderer *renderer)
+{
+    glBindVertexArray(renderer->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
+    glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}

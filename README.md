@@ -1,17 +1,36 @@
 # MiniVector
 
-A configurable XY vector display simulator
+A configurable XY vector display simulator for unix-like systems.
 
 ![minivector_demo](docs/minivector_demo.png)
 
 ## TODO
 
-- Open port for streaming point data
+Currently the simulator is nothing more than a line renderer.
+However, later on I would like to implement full electron gun simulation.
+
+There are several things required before full 1.0 release:
+
+- Replace line rendering with compute shader raserizer
+- Implement electron gun simulation instead of GL_LINES
+- Change instruction set to work with electron gun movement instead of drawing points directly
 - Add shader to simulate a vector display
 
 ## Usage
 
+Minivector will create a pipe at the specified location.
+Applications can write instructions to this pipe which will be executed by minivector.
+
+Example
+
+```bash
+nohup minivector &                            # Run detached
+cat test/drawings/smiley.mv >> /tmp/mv_pipe   # Send instructions
 ```
+
+### Options
+
+```s
 Usage: microvector [options]
   Options:
   -w, --window <width> <height>     Set the window size
@@ -19,6 +38,7 @@ Usage: microvector [options]
   -p, --primary <color_hex>         Set the primary color
   -s, --secondary <color_hex>       Set the secondary color
   -l, --line-width <width>          Set the line width
+  -i, --pipe <pipe>                 Set the pipe to read the instructions
   -h, --help                        Show this help message
 ```
 
@@ -31,9 +51,9 @@ Instructions are 38 bits of data.
 - The the rest is a 32 bit buffer of addtional data (eg. point coorinates)
 
 ```
-00000000 00000000000000000000000000000000
--------- --------------------------------
-    |- Instruction      |- Additional Data
+| 00000000 00000000000000000000000000000000
+| -------- --------------------------------
+     |- 8-bit Instruction   |- 32-bit Additional Data
 ```
 
 ### Instruction Set
@@ -42,7 +62,7 @@ The following is a list of supported instructions and their additional data
 
 ```
 - 0x00000000 : Clear display    [No Data]
-- 0x00000001 : Add point        [X: u32, Y: u32]
+- 0x00000001 : Add point        [X: ii6, Y: i16]
 ```
 
 ## Building

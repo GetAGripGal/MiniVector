@@ -18,6 +18,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                                "  -p, --primary <color_hex>         Set the primary color\n"
                                "  -s, --secondary <color_hex>       Set the secondary color\n"
                                "  -l, --line-width <width>          Set the line width\n"
+                               "  -i, --pipe <pipe>                 Set the pipe to read the instructions\n"
                                "  -h, --help                        Show this help message\n";
     // The default configuration
     mv_config config = {
@@ -34,6 +35,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
             .secondary = DEFAULT_SECONDARY_COLOR,
         },
         .line_width = DEFAULT_LINE_WIDTH,
+        .pipe = DEFAULT_PIPE,
     };
     for (int32_t i = 1; i < argc; ++i)
     {
@@ -92,6 +94,17 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                 exit(1);
             }
             config.line_width = atoi(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--pipe") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.pipe = argv[i + 1];
             i += 1;
         }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)

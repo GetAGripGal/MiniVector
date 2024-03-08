@@ -11,6 +11,7 @@
 #include "display.h"
 #include "renderer.h"
 #include "instruction.h"
+#include "pipe.h"
 #include "log.h"
 #include "state.h"
 
@@ -30,59 +31,8 @@ int32_t main(int32_t argc, char *argv[])
     mv_display *display = mv_create_display(config.resolution.width, config.resolution.height);
     mv_set_line_width(display, config.line_width);
 
-    // Draw a little smily face :)
-
-    // The face in lines
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(100, 100),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(120, 100),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(100, 100),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(95, 95),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(120, 100),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(125, 95),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(105, 90),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(105, 80),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(115, 90),
-                           },
-                           display);
-    mv_process_instruction((mv_instruction){
-                               .type = MV_INSTRUCTION_SET_POINT,
-                               .data = mv_coords_to_u32(115, 80),
-                           },
-                           display);
+    // Open the pipe
+    mv_pipe *pipe = mv_create_pipe(config.pipe);
 
     /// Create the renderer
     mv_renderer *renderer = mv_create_renderer(display);
@@ -97,13 +47,16 @@ int32_t main(int32_t argc, char *argv[])
     mv_set_window_user_pointer(window, &state);
 
     // The palette
-    mv_color primary = config.palette.primary;
-    mv_color secondary = config.palette.secondary;
+    mv_color_t primary = config.palette.primary;
+    mv_color_t secondary = config.palette.secondary;
 
     // The main loop
     TRACE("Starting the main loop\n");
     while (!glfwWindowShouldClose(window->glfw_ptr))
     {
+        // Poll the pipe
+        mv_poll_pipe(pipe, display, frame, renderer);
+
         // Bind the framebuffer
         mv_bind_frame(frame);
         glViewport(0, 0, config.resolution.width, config.resolution.height);
@@ -128,5 +81,8 @@ int32_t main(int32_t argc, char *argv[])
     TRACE("Cleaning up\n");
     mv_destroy_frame(frame);
     mv_destroy_window(window);
+    mv_destroy_display(display);
+    mv_destroy_renderer(renderer);
+    mv_destroy_pipe(pipe);
     return 0;
 }

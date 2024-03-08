@@ -60,7 +60,7 @@ void mv_renderer_set_projection(mv_renderer *renderer, float width, float height
  * @param primary The color of the background
  * @param secondary The color of the lines
  */
-void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color primary, mv_color secondary);
+void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color_t primary, mv_color_t secondary);
 
 /**
  * @brief Destroy the renderer
@@ -70,18 +70,13 @@ void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color prima
 void mv_destroy_renderer(mv_renderer *renderer);
 
 /**
+ * @brief Clear the buffers for the renderer
+ *
+ * @param renderer The renderer
+ */
+void mv_clear_buffers(mv_renderer *renderer);
+
+/**
  * @brief Create the buffers for the renderer
  */
 static void create_buffers(mv_renderer *renderer);
-
-/**
- * @brief Create the orthographic projection
- * @param left The left side of the projection
- * @param right The right side of the projection
- * @param bottom The bottom side of the projection
- * @param top The top side of the projection
- * @param near The near side of the projection
- * @param far The far side of the projection
- * @return The orthographic projection
- */
-static float *orthographic(float left, float right, float bottom, float top, float near, float far);

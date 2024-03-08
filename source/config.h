@@ -15,6 +15,8 @@
 
 #define DEFAULT_LINE_WIDTH 2
 
+#define DEFAULT_PIPE "/tmp/mv_pipe"
+
 /// @brief Configuration for the application
 typedef struct mv_config
 {
@@ -30,10 +32,11 @@ typedef struct mv_config
     } resolution;
     struct // The palette
     {
-        mv_color primary;
-        mv_color secondary;
+        mv_color_t primary;
+        mv_color_t secondary;
     } palette;
     float line_width; // The line width
+    char *pipe;       // The pipe to read the instructions
 } mv_config;
 
 /**
