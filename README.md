@@ -16,6 +16,14 @@ There are several things required before full 1.0 release:
 - Change instruction set to work with electron gun movement instead of drawing points directly
 - Add shader to simulate a vector display
 
+### Pie in the sky
+There are some non-essential features I would like to add in the future.
+
+- [Windows 96](https://windows96.net/) support
+- Windows support
+- Seperate utility for font rendering
+- Seperate utility for vector art drawing
+
 ## Usage
 
 Minivector will create a pipe at the specified location.
