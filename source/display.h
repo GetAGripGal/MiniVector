@@ -36,6 +36,15 @@ mv_display *mv_create_display();
 void mv_set_line_width(mv_display *display, uint16_t width);
 
 /**
+ * @brief Add a point to the display
+ *
+ * @param display The display to add a point to
+ * @param x The x coordinate of the point
+ * @param y The y coordinate of the poiint
+ */
+void mv_add_point(mv_display *display, int16_t x, int16_t y);
+
+/**
  * @brief Draws a line in the display
  *
  * @param display The display to draw the line
@@ -44,7 +53,7 @@ void mv_set_line_width(mv_display *display, uint16_t width);
  * @param x1 The x coordinate of the end point
  * @param y1 The y coordinate of the end point
  */
-void mv_draw_line(mv_display *display, int32_t x0, int32_t y0, int32_t x1, int32_t y1);
+void mv_draw_line(mv_display *display, int16_t x0, int16_t y0, int16_t x1, int16_t y1);
 
 /**
  * @brief Clears the display

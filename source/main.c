@@ -88,10 +88,14 @@ int32_t main(int32_t argc, char *argv[])
         // Bind the framebuffer
         mv_bind_frame(frame);
         glViewport(0, 0, config.resolution.width, config.resolution.height);
+
+        // Set the projection
         mv_renderer_set_projection(renderer, config.resolution.width, config.resolution.height);
 
+        // Draw the lines
         mv_renderer_draw(renderer, display, primary, secondary);
 
+        // Draw to the screen
         mv_unbind_frame();
 
         // Draw the framebuffer
