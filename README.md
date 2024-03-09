@@ -55,7 +55,7 @@ Usage: microvector [options]
 ## Instructions
 
 The simulator responds to a specific format of instructions.
-Instructions are 38 bits of data.
+Instructions are 40 bits of data.
 
 - The first 8-bits indicate the instruction type.
 - The the rest is a 32 bit buffer of addtional data (eg. point coorinates)
