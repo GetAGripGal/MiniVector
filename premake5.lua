@@ -59,6 +59,8 @@ targetdir "build/bin/%{cfg.buildcfg}"
 files {
     "source/**.h",
     "source/**.c",
+    "source/legacy/**.h",
+    "source/legacy/**.c",
 
     -- Glad
     "vendor/glad/include/glad/**.h",
@@ -72,6 +74,8 @@ files {
 -- Include directories
 includedirs {
     "source",
+    "source/legacy",
+
     "vendor/glad/include",
     "vendor/HandmadeMath",
     "vendor/glfw/include",
@@ -80,9 +84,16 @@ includedirs {
 -- Link libraries
 links {
     "glfw",
-    "GL",
     "dl",
 }
+
+-- Now we need to add the OpenGL system libraries
+
+filter { "system:windows" }
+links { "OpenGL32" }
+
+filter { "system:not windows" }
+links { "GL" }
 
 filter "configurations:Debug"
 defines { "DEBUG" }

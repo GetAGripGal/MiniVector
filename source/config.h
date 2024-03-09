@@ -41,6 +41,7 @@ typedef struct mv_config
     } palette;
     float line_width; // The line width
     char *pipe;       // The pipe to read the instructions
+    int8_t legacy;    // Use the legacy renderer
 } mv_config;
 
 /**

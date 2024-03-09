@@ -113,7 +113,7 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
     state->window->reported_size.width = width;
     state->window->reported_size.height = height;
 
-    mv_present_frame(state->frame, state->window);
+    mv_present_legacy_frame(state->frame_legacy, state->window, state->config.palette.primary);
 }
 
 /**

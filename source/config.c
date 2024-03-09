@@ -13,13 +13,14 @@ mv_config mv_read_config(int32_t argc, char *argv[])
 {
     static const char *usage = "Usage: %s [options]\n"
                                "Options:\n"
-                               "  -w, --window <width> <height>     Set the window size\n"
-                               "  -r, --resolution <width> <height> Set the resolution\n"
-                               "  -p, --primary <color_hex>         Set the primary color\n"
-                               "  -s, --secondary <color_hex>       Set the secondary color\n"
-                               "  -l, --line-width <width>          Set the line width\n"
-                               "  -i, --pipe <pipe>                 Set the pipe to read the instructions\n"
-                               "  -h, --help                        Show this help message\n";
+                               "  -w,  --window <width> <height>     Set the window size\n"
+                               "  -r,  --resolution <width> <height> Set the resolution\n"
+                               "  -p,  --primary <color_hex>         Set the primary color\n"
+                               "  -s,  --secondary <color_hex>       Set the secondary color\n"
+                               "  -l,  --line-width <width>          Set the line width\n"
+                               "  -i,  --pipe <pipe>                 Set the pipe to read the instructions\n"
+                               "  -le, --legacy                      Use the legacy renderer\n"
+                               "  -h,  --help                        Show this help message\n";
     // The default configuration
     mv_config config = {
         .window = {
@@ -36,6 +37,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         },
         .line_width = DEFAULT_LINE_WIDTH,
         .pipe = DEFAULT_PIPE,
+        .legacy = 0,
     };
     for (int32_t i = 1; i < argc; ++i)
     {
@@ -106,6 +108,10 @@ mv_config mv_read_config(int32_t argc, char *argv[])
             }
             config.pipe = argv[i + 1];
             i += 1;
+        }
+        else if (strcmp(argv[i], "-le") == 0 || strcmp(argv[i], "--legacy") == 0)
+        {
+            config.legacy = 1;
         }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
         {

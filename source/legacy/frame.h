@@ -2,6 +2,7 @@
 
 #include "shader.h"
 #include "window.h"
+#include "color.h"
 #include <glad/glad.h>
 
 #define MV_VERTEX_SHADER                                        \
@@ -83,15 +84,20 @@
     "}\n"
 
 /**
- * @brief The framebuffer
+ * @brief The legacy framebuffer
  */
-typedef struct mv_frame
+typedef struct mv_legacy_frame
 {
     GLuint fbo;
     GLuint texture;
     mv_shader *shader;
     GLuint vao; // Remains empty and is only used to draw the fullscreen quad
-} mv_frame;
+    struct
+    {
+        uint32_t width;
+        uint32_t height;
+    } resolution;
+} mv_legacy_frame;
 
 /**
  * @brief Create the framebuffer
@@ -99,29 +105,42 @@ typedef struct mv_frame
  * @param height The height of the framebuffer
  * @return The framebuffer
  */
-mv_frame *mv_create_frame(int32_t width, int32_t height);
+mv_legacy_frame *mv_create_frame(int32_t width, int32_t height);
 
 /**
  * @brief Destroy the framebuffer
+ *
  * @param frame The framebuffer
  */
-void mv_destroy_frame(mv_frame *frame);
+void mv_destroy_legacy_frame(mv_legacy_frame *frame);
+
+/**
+ * @brief Clear the framebuffer texture
+ *
+ * @param frame The framebuffer
+ * @param color The color to clear the texture
+ */
+void mv_clear_legacy_frame(mv_legacy_frame *frame);
 
 /**
  * @brief Bind the framebuffer
  * @param frame The framebuffer
  */
-void mv_bind_frame(mv_frame *frame);
+void mv_bind_legacy_frame(mv_legacy_frame *frame);
 
 /**
  * @brief Unbind the framebuffer
  */
-void mv_unbind_frame();
+void mv_unbind_legacy_frame();
 
 /**
  * @brief Present the framebuffer
+ *
+ * @param frame The framebuffer
+ * @param window The window to present to
+ * @param clear_color The color to clear the framebuffer
  */
-void mv_present_frame(mv_frame *frame, mv_window *window);
+void mv_present_legacy_frame(mv_legacy_frame *frame, mv_window *window, mv_color_t clear_color);
 
 /**
  * @brief Create the render texture
@@ -129,7 +148,7 @@ void mv_present_frame(mv_frame *frame, mv_window *window);
  * @param width The width of the framebuffer
  * @param height The height of the framebuffer
  */
-static void create_texture(mv_frame *frame, int32_t width, int32_t height);
+static void create_texture(mv_legacy_frame *frame, int32_t width, int32_t height);
 
 /**
  * @brief Create the framebuffer
@@ -137,10 +156,10 @@ static void create_texture(mv_frame *frame, int32_t width, int32_t height);
  * @param width The width of the framebuffer
  * @param height The height of the framebuffer
  */
-static void create_buffer(mv_frame *frame, int32_t width, int32_t height);
+static void create_buffer(mv_legacy_frame *frame, int32_t width, int32_t height);
 
 /**
  * @brief Create the vertex array object
  * @param frame The framebuffer
  */
-static void create_vao(mv_frame *frame);
+static void create_vao(mv_legacy_frame *frame);

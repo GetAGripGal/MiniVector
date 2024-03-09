@@ -1,5 +1,5 @@
 #include "pipe.h"
-#include "display.h"
+#include "legacy/display.h"
 #include "log.h"
 
 #include <fcntl.h>
@@ -41,11 +41,9 @@ void mv_destroy_pipe(mv_pipe *pipe)
  * @brief Poll a pipe
  *
  * @param pipe Pipe to poll
- * @param display Display to operate on
- * @param frame Frame to operate on
- * @param renderer Renderer to operate on
+ * @return The instruction read from the pipe
  */
-void mv_poll_pipe(mv_pipe *pipe, mv_display *display, mv_frame *frame, mv_renderer *renderer)
+mv_instruction_t *mv_poll_pipe(mv_pipe *pipe)
 {
     pipe->fd = fopen(pipe->pipe_path, "r");
 
@@ -62,12 +60,8 @@ void mv_poll_pipe(mv_pipe *pipe, mv_display *display, mv_frame *frame, mv_render
     }
 
     mv_instruction_t *instruction = mv_pipe_read_instruction(pipe);
-    if (instruction)
-    {
-        mv_process_instruction(*instruction, display, frame, renderer);
-        free(instruction);
-    }
     fclose(pipe->fd);
+    return instruction;
 }
 
 /**

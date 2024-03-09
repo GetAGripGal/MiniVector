@@ -32,9 +32,9 @@ void mv_destroy_pipe(mv_pipe *pipe);
  * @brief Poll a pipe
  *
  * @param pipe Pipe to poll
- * @param display Display to operate on
+ * @return The instruction read from the pipe
  */
-void mv_poll_pipe(mv_pipe *pipe, mv_display *display, mv_frame *frame, mv_renderer *renderer);
+mv_instruction_t *mv_poll_pipe(mv_pipe *pipe);
 
 /**
  * @brief Read an instruction from the pipe

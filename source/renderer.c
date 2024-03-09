@@ -2,103 +2,152 @@
 #include "log.h"
 
 #include <stdlib.h>
-#include <HandmadeMath.h>
 
 /**
- * @brief Create the renderer
+ * @brief Create the electron renderer
+ *
+ * @param width The width of the renderer
+ * @param height The height of the renderer
+ * @return The electron renderer
  */
-mv_renderer *mv_create_renderer()
+mv_electron_renderer *mv_create_electron_renderer(uint32_t width, uint32_t height)
 {
-    mv_renderer *renderer = malloc(sizeof(mv_renderer));
+    mv_electron_renderer *renderer = malloc(sizeof(mv_electron_renderer));
 
-    renderer->shader = mv_create_shader(MV_LINE_VERTEX_SHADER, MV_LINE_FRAGMENT_SHADER);
-    create_buffers(renderer);
+    // Create the shader
+    renderer->shader = mv_create_shader(MV_ELECTRON_RENDERER_VERTEX_SHADER, MV_ELECTRON_RENDERER_FRAGMENT_SHADER);
+
+    // Create the compute shader
+    renderer->compute_program = create_compute_shader(MV_ELECTRON_RENDERER_COMPUTE_SHADER);
+
+    // Enable blending
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Create the vertex array object
+    glGenVertexArrays(1, &renderer->vao);
+
+    // Create the frame texture
+    glGenTextures(1, &renderer->frame_texture);
+    glBindTexture(GL_TEXTURE_2D, renderer->frame_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindImageTexture(0, renderer->frame_texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+    // Set the resolution
+    renderer->resolution.width = width;
+    renderer->resolution.height = height;
+
+    renderer->clear = 0;
 
     return renderer;
 }
 
 /**
- * @brief Set the renderer projection. The projection is orthographic
+ * @brief Destroy the electron renderer
  *
- * @param renderer The renderer
- * @param width The width of the projection
- * @param height The height of the projection
+ * @param renderer The electron renderer
  */
-void mv_renderer_set_projection(mv_renderer *renderer, float width, float height)
+void mv_destroy_electron_renderer(mv_electron_renderer *renderer)
 {
-    mv_use_shader(renderer->shader);
-    HMM_Mat4 projection = HMM_Orthographic_LH_NO(0.0f, width, height, 0.0f, -1.0f, 1.0f);
-    mv_set_uniform_mat4(renderer->shader, "projection", projection.Elements[0]);
-}
-
-/**
- * @brief Draw the display
- *
- * @param renderer The renderer
- * @param display The display to draw
- * @param primary The color of the background
- * @param secondary The color of the lines
- */
-void mv_renderer_draw(mv_renderer *renderer, mv_display *display, mv_color_t primary, mv_color_t secondary)
-{
-    glClearColor(((float)primary.r / 255.0f), ((float)primary.g / 255.0f), ((float)primary.b / 255.0f), 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    mv_use_shader(renderer->shader);
-    mv_set_uniform_vec3(renderer->shader, "color", ((float)secondary.r / 255.0f), ((float)secondary.g / 255.0f), ((float)secondary.b / 255.0f));
-
-    glBindVertexArray(renderer->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(mv_point) * display->point_count, display->points, GL_DYNAMIC_DRAW);
-    glDrawArrays(GL_LINES, 0, display->point_count);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-}
-
-/**
- * @brief Destroy the renderer
- *
- * @param renderer The renderer to destroy
- */
-void mv_destroy_renderer(mv_renderer *renderer)
-{
-    mv_destroy_shader(renderer->shader);
-    glDeleteVertexArrays(1, &renderer->vao);
-    glDeleteBuffers(1, &renderer->vbo);
+    glDeleteProgram(renderer->compute_program);
+    glDeleteTextures(1, &renderer->frame_texture);
     free(renderer);
 }
 
 /**
- * @brief Create the buffers for the renderer
+ * @brief Render the electron gun
+ *
+ * @param renderer The electron renderer
+ * @param electron_gun The electron gun
+ * @param window The window
+ * @param primary The primary color
+ * @param secondary The secondary color
  */
-static void create_buffers(mv_renderer *renderer)
+void mv_render_electron_gun(mv_electron_renderer *renderer, mv_electron_gun *electron_gun, mv_window *window, mv_color_t primary, mv_color_t secondary)
 {
-    GLuint vao, vbo;
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
+    if (renderer->clear)
+    {
+        TRACE("Clearing the frame\n");
+        glBindTexture(GL_TEXTURE_2D, renderer->frame_texture);
 
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(mv_point), (void *)0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+        // Clear the texture by filling it with zeros
+        float *data = calloc(renderer->resolution.width * renderer->resolution.height * 4, sizeof(float));
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, renderer->resolution.width, renderer->resolution.height, GL_RGBA, GL_FLOAT, data);
+        free(data);
 
-    renderer->vao = vao;
-    renderer->vbo = vbo;
+        // Check for errors
+        GLenum error = glGetError();
+        if (error != GL_NO_ERROR)
+        {
+            ERROR("Failed to clear the frame: %d\n", error);
+        }
+
+        renderer->clear = 0;
+    }
+
+    glUseProgram(renderer->compute_program);
+    glUniform3f(glGetUniformLocation(renderer->compute_program, "primary_color"), (float)primary.r / 255.0f, (float)primary.g / 255.0f, (float)primary.b / 255.0f);
+    glUniform3f(glGetUniformLocation(renderer->compute_program, "secondary_color"), (float)secondary.r / 255.0f, (float)secondary.g / 255.0f, (float)secondary.b / 255.0f);
+
+    glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_previous_position"), electron_gun->prev_position.x, electron_gun->prev_position.y);
+    glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_position"), electron_gun->position.x, electron_gun->position.y);
+    glUniform1f(glGetUniformLocation(renderer->compute_program, "electron_gun_power"), electron_gun->power);
+
+    glDispatchCompute(renderer->resolution.width / MV_ELECTRON_SHADER_DISPATCH_SIZE, renderer->resolution.height / MV_ELECTRON_SHADER_DISPATCH_SIZE, 1);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+    // Draw the frame
+    mv_use_shader(renderer->shader);
+    mv_set_uniform_ivec2(renderer->shader, "resolution", window->reported_size.width, window->reported_size.height);
+    glBindVertexArray(renderer->vao);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
 }
 
 /**
- * @brief Clear the buffers for the renderer
+ * @brief Clear the frame
  *
- * @param renderer The renderer
+ * @param renderer The electron renderer
  */
-void mv_clear_buffers(mv_renderer *renderer)
+void mv_clear_frame(mv_electron_renderer *renderer)
 {
-    glBindVertexArray(renderer->vao);
-    glBindBuffer(GL_ARRAY_BUFFER, renderer->vbo);
-    glBufferData(GL_ARRAY_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    renderer->clear = 1;
+}
+
+/**
+ * @brief Create the compute shader
+ *
+ * @param source The source of the compute shader
+ */
+static GLuint create_compute_shader(const char *source)
+{
+    GLuint shader = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(shader, 1, &source, NULL);
+    glCompileShader(shader);
+
+    GLint success;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success)
+    {
+        GLchar info_log[512];
+        glGetShaderInfoLog(shader, 512, NULL, info_log);
+        ERROR("Compute shader compilation failed: %s\n", info_log);
+    }
+
+    GLuint program = glCreateProgram();
+    glAttachShader(program, shader);
+    glLinkProgram(program);
+
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success)
+    {
+        GLchar info_log[512];
+        glGetProgramInfoLog(program, 512, NULL, info_log);
+        ERROR("Program linking failed: %s\n", info_log);
+    }
+
+    glDeleteShader(shader);
+
+    return program;
 }
