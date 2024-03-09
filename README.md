@@ -1,6 +1,6 @@
 # MiniVector
 
-A programmable XY vector display simulator.
+A programmable XY vector display simulator for unix-line systems.
 Written using GLFW, OpenGl and [HandmadeMath](https://github.com/HandmadeMath/HandmadeMath).
 
 ![minivector_demo](docs/minivector_demo.png)
