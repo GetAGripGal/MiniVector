@@ -86,7 +86,7 @@ You can clone the repo and all its repositories with `--recursive`:
 git clone https://github.com/ComLarsic/MiniVector.git --recursive
 ```
 
-### Build
+### Building
 
 Generate the makefiles using premake.
 Then build it using make:
