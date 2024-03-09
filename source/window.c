@@ -18,6 +18,7 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
     window->reported_size.height = height;
 
     TRACE("Initializing GLFW\n");
+    glfwSetErrorCallback(callback_error);
     if (glfwInit() == GLFW_FALSE)
     {
         ERROR("Failed to initialize GLFW\n");
@@ -113,4 +114,13 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
     state->window->reported_size.height = height;
 
     mv_present_frame(state->frame, state->window);
+}
+
+/**
+ * @brief The error callback
+ */
+static void callback_error(int32_t error, const char *description)
+{
+    ERROR("GLFW Error: %s\n", description);
+    exit(1);
 }

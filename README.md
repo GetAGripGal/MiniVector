@@ -17,6 +17,7 @@ There are several things required before full 1.0 release:
 - Add shader to simulate a vector display
 
 ### Pie in the sky
+
 There are some non-essential features I would like to add in the future.
 
 - [Windows 96](https://windows96.net/) support
@@ -77,10 +78,6 @@ The following is a list of supported instructions and their additional data
 
 This repo uses premake. The additional libraries are stored in vendor.
 
-### Requirements
-
-MiniVector must be linked to `glfw3`.
-
 ### Cloning
 
 You can clone the repo and all its repositories with `--recursive`:
@@ -91,15 +88,11 @@ git clone https://github.com/ComLarsic/MiniVector.git --recursive
 
 ### Build
 
-Generate the makefiles using premake:
+Generate the makefiles using premake.
+Then build it using make:
 
 ```bash
 premake5 gmake
-```
-
-Then build it using make
-
-```bash
 cd build
 make
 ```

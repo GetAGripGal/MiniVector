@@ -57,3 +57,8 @@ void *mv_get_window_user_pointer(mv_window *window);
  * @brief The resize callback
  */
 static void callback_resize(GLFWwindow *window, int32_t width, int32_t height);
+
+/**
+ * @brief The error callback
+ */
+static void callback_error(int32_t error, const char *description);

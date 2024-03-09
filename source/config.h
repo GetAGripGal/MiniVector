@@ -15,7 +15,11 @@
 
 #define DEFAULT_LINE_WIDTH 2
 
+#ifdef _WIN32
+#define DEFAULT_PIPE "~\\Temp\\v_pipe"
+#else
 #define DEFAULT_PIPE "/tmp/mv_pipe"
+#endif
 
 /// @brief Configuration for the application
 typedef struct mv_config
