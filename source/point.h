@@ -19,6 +19,15 @@ typedef struct mv_point_t
 mv_point_t mv_create_point(float x, float y);
 
 /**
+ * @brief Calculates the distance between two points
+ *
+ * @param a The first point
+ * @param b The second point
+ * @return Returns the distance between the two points
+ */
+float mv_distance_points(mv_point_t a, mv_point_t b);
+
+/**
  * @brief Subtracts two points
  *
  * @param a The first point

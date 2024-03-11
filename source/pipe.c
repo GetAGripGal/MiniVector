@@ -77,10 +77,9 @@ mv_instruction_t *mv_pipe_read_instruction(mv_pipe *pipe)
     fseek(pipe->fd, 0L, SEEK_END);
     file_size = ftell(pipe->fd);
     fseek(pipe->fd, 0L, SEEK_END);
-    if (file_size < pipe->index * MV_INSTRUCTION_SIZE)
+    if (file_size < (pipe->index + 1) * MV_INSTRUCTION_SIZE)
     {
-        TRACE("No new instruction in the pipe. File size is: %u, required: %u\n", file_size, pipe->index * sizeof(mv_instruction_t));
-        return NULL;
+        pipe->index = 0;
     }
 
     // Skip if the instruction is not ready

@@ -3,7 +3,7 @@
 #include "point.h"
 #include <stdint.h>
 
-#define MV_DEFAULT_OVERDRAW_FRAMES 10
+#define MV_DRAWN_PIXELS_BUFFER_SIZE 128
 
 /**
  * @brief Represents the state of the electron gun

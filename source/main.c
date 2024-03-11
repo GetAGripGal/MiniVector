@@ -60,7 +60,7 @@ int32_t main(int32_t argc, char *argv[])
     }
     else
     {
-        electron_gun = mv_create_electron_gun(1000, 300, 300);
+        electron_gun = mv_create_electron_gun(100, 10, 10);
         electron_renderer = mv_create_electron_renderer(config.resolution.width, config.resolution.height);
     }
 
@@ -169,17 +169,18 @@ void modern_loop(mv_state *state)
     while (!glfwWindowShouldClose(state->window->glfw_ptr))
     {
         // Poll the pipe
-        if (!state->electron_gun->moving)
+        for (int32_t i = 0; i < MV_INSTRUCTION_PER_FRAME; i++)
         {
             instruction = mv_poll_pipe(state->pipe);
-            if (instruction)
+            if (!instruction)
             {
-                mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
+                break;
             }
+            mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
+            mv_update_electron_gun(state->electron_gun, delta);
+            // Calculate the new position
+            mv_calculate_pixels_electron_renderer(state->electron_renderer, state->electron_gun, primary, secondary);
         }
-
-        // Update the electron gun
-        mv_update_electron_gun(state->electron_gun, delta);
 
         // Render the electron gun
         mv_render_electron_gun(state->electron_renderer, state->electron_gun, state->window, primary, secondary);
@@ -191,5 +192,10 @@ void modern_loop(mv_state *state)
         now = glfwGetTime();
         delta = now - last;
         last = now;
+
+        // Fps counter
+        char title[100];
+        sprintf(title, "MiniVector | %f", 1.0 / delta);
+        glfwSetWindowTitle(state->window->glfw_ptr, title);
     }
 }

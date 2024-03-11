@@ -15,6 +15,18 @@ mv_point_t mv_create_point(float x, float y)
 }
 
 /**
+ * @brief Calculates the distance between two points
+ *
+ * @param a The first point
+ * @param b The second point
+ * @return Returns the distance between the two points
+ */
+float mv_distance_points(mv_point_t a, mv_point_t b)
+{
+    return sqrtf(powf(b.x - a.x, 2) + powf(b.y - a.y, 2));
+}
+
+/**
  * @brief Subtracts two points
  *
  * @param a The first point

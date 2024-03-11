@@ -44,7 +44,7 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
 
     INFO("Glfw window created\n");
     glfwMakeContextCurrent(window->glfw_ptr);
-
+    glfwSwapInterval(0);
     // Load GLAD
     TRACE("Loading GLAD\n");
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))

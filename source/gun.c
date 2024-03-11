@@ -67,37 +67,10 @@ void mv_update_electron_gun(mv_electron_gun *gun, float delta)
     // Store the previous position
     gun->prev_position = gun->position;
 
-    // Update the position of the electron gun
-    mv_point_t direction = mv_subtract_points(gun->target, gun->position);
-    float distance = mv_magnitude_point(direction);
-
-    if (floor(distance) > 2)
-    {
-        gun->moving = 1;
-        mv_point_t normalized = mv_normalize_point(direction);
-        mv_point_t scaled = mv_scale_point(normalized, gun->movement_speed * delta);
-        mv_point_t new_position = mv_add_points(gun->position, scaled);
-
-        // Check if the new position would overshoot the target
-        if (mv_magnitude_point(mv_subtract_points(gun->target, new_position)) > distance)
-        {
-            // If it would overshoot, just set the position to the target
-            gun->position = gun->target;
-        }
-        else
-        {
-            gun->position = new_position;
-        }
-    }
-    else
-    {
-        gun->moving = 0;
-    }
-
     // Update the power of the electron gun
     if (gun->powered_on)
     {
-        gun->power += gun->power_increase * delta;
+        gun->power = 100; // gun->power + gun->power_increase;
         if (gun->power > 100)
         {
             gun->power = 100;
@@ -105,12 +78,15 @@ void mv_update_electron_gun(mv_electron_gun *gun, float delta)
     }
     else
     {
-        gun->power -= gun->power_depletion * delta;
+        gun->power = 0; // gun->power - gun->power_depletion;
         if (gun->power < 0)
         {
             gun->power = 0;
         }
     }
+
+    gun->position = gun->target;
+    gun->moving = 0;
 }
 
 /**

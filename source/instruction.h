@@ -11,6 +11,8 @@
 // The size of an instruction in bytes. Without struct padding
 #define MV_INSTRUCTION_SIZE 5
 
+#define MV_INSTRUCTION_PER_FRAME 100
+
 /**
  * @brief The legacy instruction set
  */
