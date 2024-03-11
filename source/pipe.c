@@ -80,6 +80,9 @@ mv_instruction_t *mv_pipe_read_instruction(mv_pipe *pipe)
     if (file_size < (pipe->index + 1) * MV_INSTRUCTION_SIZE)
     {
         pipe->index = 0;
+        // empty the file
+        // truncate(pipe->pipe_path, 0);
+        return NULL;
     }
 
     // Skip if the instruction is not ready

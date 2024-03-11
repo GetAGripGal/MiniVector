@@ -10,8 +10,10 @@
 #define DEFAULT_RESOLUTION_WIDTH 320
 #define DEFAULT_RESOLUTION_HEIGHT 180
 
+#define DEFAULT_INSTRUCTION_PER_FRAME 1024
+
 #define DEFAULT_PRIMARY_COLOR mv_create_color(40, 40, 40)
-#define DEFAULT_SECONDARY_COLOR mv_create_color(51, 255, 51)
+#define DEFAULT_SECONDARY_COLOR mv_create_color(51, 255, 100)
 
 #define DEFAULT_LINE_WIDTH 2
 
@@ -28,6 +30,7 @@ typedef struct mv_config
     {
         uint32_t width;
         uint32_t height;
+        int8_t fullscreen;
     } window;
     struct // Resolution configuration
     {
@@ -39,9 +42,14 @@ typedef struct mv_config
         mv_color_t primary;
         mv_color_t secondary;
     } palette;
-    float line_width; // The line width
+    struct // The executor
+    {
+        uint32_t instruction_per_frame;
+    } executor;
+
     char *pipe;       // The pipe to read the instructions
     int8_t legacy;    // Use the legacy renderer
+    float line_width; // The line width [Legacy only]
 } mv_config;
 
 /**

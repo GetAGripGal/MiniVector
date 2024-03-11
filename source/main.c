@@ -3,6 +3,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "config.h"
@@ -60,7 +61,7 @@ int32_t main(int32_t argc, char *argv[])
     }
     else
     {
-        electron_gun = mv_create_electron_gun(100, 10, 10);
+        electron_gun = mv_create_electron_gun();
         electron_renderer = mv_create_electron_renderer(config.resolution.width, config.resolution.height);
     }
 
@@ -161,15 +162,35 @@ void modern_loop(mv_state *state)
     mv_color_t primary = state->config.palette.primary;
     mv_color_t secondary = state->config.palette.secondary;
 
+    // The instructions per frame
+    uint32_t instructions_per_frame = state->config.executor.instruction_per_frame;
+
+    // The buffer of positions
+    mv_electron_point *positions = calloc(instructions_per_frame, sizeof(mv_electron_point));
+    uint32_t num_positions = 0;
+
     double now = glfwGetTime();
     double last = now;
     double delta = 0.0;
 
+    // The title buffer
+    char title[256];
+
+    // For performance calculations
+    double instruction_execution_time = 0;
+    double compute_execution_time = 0;
+    double render_execution_time = 0;
+
     // The main loop
     while (!glfwWindowShouldClose(state->window->glfw_ptr))
     {
-        // Poll the pipe
-        for (int32_t i = 0; i < MV_INSTRUCTION_PER_FRAME; i++)
+        // Set the title
+        sprintf(title, "MiniVector | %ffps | instruction_execution: %f | compute_execution: %f | frame_execution: %f", 1.0 / delta, instruction_execution_time, compute_execution_time, render_execution_time);
+        glfwSetWindowTitle(state->window->glfw_ptr, title);
+
+        // Execute instructions and keep track of the positions
+        double instruction_execution_start = glfwGetTime();
+        for (int32_t i = 0; i < instructions_per_frame; i++)
         {
             instruction = mv_poll_pipe(state->pipe);
             if (!instruction)
@@ -178,24 +199,39 @@ void modern_loop(mv_state *state)
             }
             mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
             mv_update_electron_gun(state->electron_gun, delta);
-            // Calculate the new position
-            mv_calculate_pixels_electron_renderer(state->electron_renderer, state->electron_gun, primary, secondary);
+            // Remove the first position if it is too large
+            if (num_positions + 1 > instructions_per_frame)
+            {
+                memmove(positions, positions + 1, sizeof(mv_electron_point) * (num_positions - 1));
+                num_positions--;
+            }
+            positions[num_positions++] = (mv_electron_point){
+                .position = (mv_point_t){state->electron_gun->position.x, state->electron_gun->position.y},
+                .powered_on = state->electron_gun->powered_on,
+            };
         }
+        double instruction_execution_end = glfwGetTime();
+
+        // Calculate the new position
+        double compute_execution_start = glfwGetTime();
+        mv_calculate_pixels_electron_renderer(state->electron_renderer, state->electron_gun, primary, secondary, positions, num_positions);
+        double compute_execution_end = glfwGetTime();
 
         // Render the electron gun
+        double render_execution_start = glfwGetTime();
         mv_render_electron_gun(state->electron_renderer, state->electron_gun, state->window, primary, secondary);
 
         // Present the changes
         mv_present_window(state->window);
+        double render_execution_end = glfwGetTime();
 
         // Update the time
         now = glfwGetTime();
         delta = now - last;
         last = now;
 
-        // Fps counter
-        char title[100];
-        sprintf(title, "MiniVector | %f", 1.0 / delta);
-        glfwSetWindowTitle(state->window->glfw_ptr, title);
+        instruction_execution_time = instruction_execution_end - instruction_execution_start;
+        compute_execution_time = compute_execution_end - compute_execution_start;
+        render_execution_time = render_execution_end - render_execution_start;
     }
 }

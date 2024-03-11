@@ -50,7 +50,7 @@ void mv_bind_legacy_frame(mv_legacy_frame *frame)
 /**
  * @brief Unbind the framebuffer
  */
-void mv_unbind_legacy_frame()
+void mv_unbind_legacy_frame(void)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }

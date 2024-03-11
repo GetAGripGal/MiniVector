@@ -10,15 +10,9 @@
  */
 typedef struct mv_electron_gun
 {
-    mv_point_t position;      // The position of the gun
-    mv_point_t prev_position; // The position of the gun in the last frame
-    mv_point_t target;        // The target to aim at
-    float movement_speed;     // Speed of the electron beam in p/s
-    float power_depletion;    // Speed of the electron beam power off in %/s
-    float power_increase;     // Speed of the electron beam power on in %/s
-    int8_t power;             // 0-100% power
-    int8_t powered_on;        // Whether the gun is powered on
-    int8_t moving;            // Whether the gun is moving
+    mv_point_t position; // The position of the gun
+    mv_point_t target;   // The target to aim at
+    int32_t powered_on;  // Whether the gun is powered on
 } mv_electron_gun;
 
 /**
@@ -29,7 +23,7 @@ typedef struct mv_electron_gun
  * @param power_depletion Speed of the electron beam power off in %/s
  * @return Returns a new electron gun
  */
-mv_electron_gun *mv_create_electron_gun(float movement_speed, float power_increase, float power_depletion);
+mv_electron_gun *mv_create_electron_gun();
 
 /**
  * @brief Powers on the electron gun

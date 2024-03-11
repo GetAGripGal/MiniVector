@@ -12,15 +12,11 @@
  * @param power_depletion Speed of the electron beam power off in %/s
  * @return Returns a new electron gun
  */
-mv_electron_gun *mv_create_electron_gun(float movement_speed, float power_increase, float power_depletion)
+mv_electron_gun *mv_create_electron_gun(void)
 {
     mv_electron_gun *gun = malloc(sizeof(mv_electron_gun));
     gun->position = (mv_point_t){0, 0};
     gun->target = (mv_point_t){0, 0};
-    gun->movement_speed = movement_speed;
-    gun->power_depletion = power_depletion;
-    gun->power_increase = power_increase;
-    gun->power = 0;
     gun->powered_on = 0;
     return gun;
 }
@@ -65,28 +61,7 @@ void mv_aim_electron_gun(mv_electron_gun *gun, mv_point_t target)
 void mv_update_electron_gun(mv_electron_gun *gun, float delta)
 {
     // Store the previous position
-    gun->prev_position = gun->position;
-
-    // Update the power of the electron gun
-    if (gun->powered_on)
-    {
-        gun->power = 100; // gun->power + gun->power_increase;
-        if (gun->power > 100)
-        {
-            gun->power = 100;
-        }
-    }
-    else
-    {
-        gun->power = 0; // gun->power - gun->power_depletion;
-        if (gun->power < 0)
-        {
-            gun->power = 0;
-        }
-    }
-
     gun->position = gun->target;
-    gun->moving = 0;
 }
 
 /**

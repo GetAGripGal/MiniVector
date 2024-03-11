@@ -27,6 +27,9 @@ mv_electron_renderer *mv_create_electron_renderer(uint32_t width, uint32_t heigh
     // Create the vertex array object
     glGenVertexArrays(1, &renderer->vao);
 
+    // Create the positions buffer
+    renderer->positions_buffer = create_positions_buffer();
+
     // Create the frame textures
     renderer->frame_texture[0] = create_frame_buffer(width, height);
     renderer->frame_texture[1] = create_frame_buffer(width, height);
@@ -61,18 +64,26 @@ void mv_destroy_electron_renderer(mv_electron_renderer *renderer)
  * @param electron_gun The electron gun
  * @param primary The primary color
  * @param secondary The secondary color
+ * @param positions The positions of the electrons
+ * @param positions_count The number of positions
  */
-void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_electron_gun *electron_gun, mv_color_t primary, mv_color_t secondary)
+void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_electron_gun *electron_gun, mv_color_t primary, mv_color_t secondary, mv_electron_point *positions, uint32_t positions_count)
 {
     glUseProgram(renderer->compute_program);
+
+    // Update the positions buffer
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, renderer->positions_buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(mv_electron_point) * positions_count, positions, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, renderer->positions_buffer);
+
     // Bind the current texture
     glBindImageTexture(0, renderer->frame_texture[renderer->current_texture], 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
     glUniform3f(glGetUniformLocation(renderer->compute_program, "primary_color"), (float)primary.r / 255.0f, (float)primary.g / 255.0f, (float)primary.b / 255.0f);
     glUniform3f(glGetUniformLocation(renderer->compute_program, "secondary_color"), (float)secondary.r / 255.0f, (float)secondary.g / 255.0f, (float)secondary.b / 255.0f);
 
-    glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_previous_position"), electron_gun->prev_position.x, electron_gun->prev_position.y);
+    glUniform1i(glGetUniformLocation(renderer->compute_program, "positions_count"), positions_count);
     glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_position"), electron_gun->position.x, electron_gun->position.y);
-    glUniform1f(glGetUniformLocation(renderer->compute_program, "electron_gun_power"), electron_gun->power);
+    glUniform1i(glGetUniformLocation(renderer->compute_program, "electron_gun_power"), electron_gun->powered_on);
 
     glDispatchCompute(renderer->resolution.width / MV_ELECTRON_SHADER_DISPATCH_SIZE, renderer->resolution.height / MV_ELECTRON_SHADER_DISPATCH_SIZE, 1);
     glMemoryBarrier(GL_ALL_BARRIER_BITS);
@@ -192,4 +203,21 @@ static GLuint create_frame_buffer(uint32_t width, uint32_t height)
     glBindImageTexture(0, frame_buffer, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 
     return frame_buffer;
+}
+
+/**
+ * @brief Create the positions buffer
+ *
+ * @param positions The positions of the electrons
+ * @param positions_count The number of positions
+ * @return The buffer
+ */
+static GLuint create_positions_buffer()
+{
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, 0, NULL, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
+    return buffer;
 }
