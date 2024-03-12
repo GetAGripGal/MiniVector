@@ -1,3 +1,7 @@
+## Notice
+Currently this is an older GL_LINES based renderer.
+Development continues in [electron_gun](https://github.com/ComLarsic/MiniVector/tree/electron_gun).
+
 # MiniVector
 
 A programmable XY vector display simulator for unix-like systems.
