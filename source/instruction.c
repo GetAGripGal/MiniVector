@@ -21,10 +21,12 @@ uint32_t mv_coords_to_u32(int16_t x, int16_t y)
  */
 void mv_process_instruction(mv_instruction_t *instruction, mv_electron_gun *electron_gun, mv_electron_renderer *electron_renderer)
 {
+    TRACE("Processing instruction: %u, %u\n", instruction->type, instruction->data);
     switch (instruction->type)
     {
     case MV_INSTRUCTION_CLEAR:
         mv_clear_frame(electron_renderer);
+        TRACE("Clearing frame\n");
         break;
     case MV_INSTRUCTION_SET_TARGET:
         mv_aim_electron_gun(electron_gun, (mv_point_t){instruction->data >> 16, instruction->data & 0xFFFF});

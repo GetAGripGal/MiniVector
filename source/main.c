@@ -166,7 +166,7 @@ void modern_loop(mv_state *state)
     uint32_t instructions_per_frame = state->config.executor.instruction_per_frame;
 
     // The buffer of positions
-    mv_electron_point *positions = calloc(instructions_per_frame, sizeof(mv_electron_point));
+    mv_electron_point *positions = calloc(instructions_per_frame + 1, sizeof(mv_electron_point));
     uint32_t num_positions = 0;
 
     double now = glfwGetTime();
@@ -190,6 +190,7 @@ void modern_loop(mv_state *state)
 
         // Execute instructions and keep track of the positions
         double instruction_execution_start = glfwGetTime();
+        num_positions = 0;
         for (int32_t i = 0; i < instructions_per_frame; i++)
         {
             instruction = mv_poll_pipe(state->pipe);
@@ -197,11 +198,13 @@ void modern_loop(mv_state *state)
             {
                 break;
             }
+            TRACE("Processing instruction type: %d\n", instruction->type);
             mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
             mv_update_electron_gun(state->electron_gun, delta);
             // Remove the first position if it is too large
             if (num_positions + 1 > instructions_per_frame)
             {
+                TRACE("Removing the first position\n");
                 memmove(positions, positions + 1, sizeof(mv_electron_point) * (num_positions - 1));
                 num_positions--;
             }

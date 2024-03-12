@@ -18,9 +18,14 @@ mv_pipe *mv_create_pipe(char *pipe_path)
     mv_pipe *pipe = malloc(sizeof(mv_pipe));
     pipe->pipe_path = pipe_path;
     pipe->index = 0;
+    pipe->instruction_buffer = NULL;
+    pipe->instruction_count = 0;
+    pipe->buffered_bytes_count = 0;
 
-    // Clear the pipe
-    remove(pipe->pipe_path);
+    // Create the pipe
+    mkfifo(pipe->pipe_path, 0666);
+    pipe->fd = open(pipe->pipe_path, O_RDWR | O_NONBLOCK);
+
     return pipe;
 }
 
@@ -45,23 +50,66 @@ void mv_destroy_pipe(mv_pipe *pipe)
  */
 mv_instruction_t *mv_poll_pipe(mv_pipe *pipe)
 {
-    pipe->fd = fopen(pipe->pipe_path, "r");
+    uint64_t instructions_buffer_size = 5;
+    const int8_t instructions_buffer_increment = 10;
+    int8_t bytes_read = 0;
 
-    if (!pipe->fd)
+    int8_t any_read = 0;
+
+    int8_t buffer[BYTE_BUFFER_SIZE];
+    if (bytes_read = read(pipe->fd, buffer, sizeof(uint8_t)) > 0)
     {
-        pipe->fd = fopen(pipe->pipe_path, "w");
-        if (!pipe->fd)
+        for (int8_t i = 0; i < bytes_read; i++)
         {
-            ERROR("Unable to open pipe %s\n", pipe->pipe_path);
-            exit(1);
+            if (pipe->buffered_bytes_count >= BYTE_BUFFER_SIZE)
+            {
+                ERROR("Byte buffer overflow\n");
+                continue;
+            }
+            pipe->buffered_bytes[pipe->buffered_bytes_count] = buffer[i];
+            pipe->buffered_bytes_count++;
         }
-        fclose(pipe->fd);
-        pipe->fd = fopen(pipe->pipe_path, "r");
+        any_read = 1;
     }
 
-    mv_instruction_t *instruction = mv_pipe_read_instruction(pipe);
-    fclose(pipe->fd);
-    return instruction;
+    // If the amount of bytes in the buffer is big enough to contain an instruction
+    // Read the instruction, and remove it from the buffer
+    if (pipe->buffered_bytes_count >= MV_INSTRUCTION_SIZE)
+    {
+        // Reallocation of the instruction buffer
+        pipe->instruction_buffer = realloc(pipe->instruction_buffer, (pipe->instruction_count + 1) * sizeof(mv_instruction_t));
+
+        mv_instruction_t instruction = (mv_instruction_t){
+            .type = pipe->buffered_bytes[0],
+            .data = (pipe->buffered_bytes[1] << 24) | (pipe->buffered_bytes[2] << 16) | (pipe->buffered_bytes[3] << 8) | pipe->buffered_bytes[4]};
+
+        pipe->instruction_buffer[pipe->instruction_count++] = instruction;
+
+        TRACE("Read instruction(%d): %d, %d\n", pipe->instruction_count, instruction.type, instruction.data);
+        // and move the rest of the buffer to the start
+        for (int8_t i = 0; i < pipe->buffered_bytes_count - MV_INSTRUCTION_SIZE; i++)
+        {
+            if (i + MV_INSTRUCTION_SIZE < BYTE_BUFFER_SIZE)
+            {
+                continue;
+            }
+            pipe->buffered_bytes[i] = pipe->buffered_bytes[i + MV_INSTRUCTION_SIZE];
+        }
+        pipe->buffered_bytes_count -= MV_INSTRUCTION_SIZE;
+    }
+
+    if (any_read)
+    {
+        return NULL;
+    }
+    if (pipe->index >= pipe->instruction_count)
+    {
+        pipe->index = 0;
+    }
+
+    TRACE("Index: %d\n", pipe->index);
+
+    return &pipe->instruction_buffer[pipe->index++];
 }
 
 /**
@@ -71,41 +119,6 @@ mv_instruction_t *mv_poll_pipe(mv_pipe *pipe)
  */
 mv_instruction_t *mv_pipe_read_instruction(mv_pipe *pipe)
 {
-    // The index points to the start of the next instruction
-    // If the file is bigger than the index, there is a new instruction
-    uint32_t file_size = 0;
-    fseek(pipe->fd, 0L, SEEK_END);
-    file_size = ftell(pipe->fd);
-    fseek(pipe->fd, 0L, SEEK_END);
-    if (file_size < (pipe->index + 1) * MV_INSTRUCTION_SIZE)
-    {
-        pipe->index = 0;
-        // empty the file
-        // truncate(pipe->pipe_path, 0);
-        return NULL;
-    }
-
-    // Skip if the instruction is not ready
-    if (file_size < (pipe->index + 1) * MV_INSTRUCTION_SIZE)
-    {
-        return NULL;
-    }
-
-    // Read the latest instruction
-    uint8_t *buffer = malloc(MV_INSTRUCTION_SIZE);
-    fseek(pipe->fd, pipe->index * MV_INSTRUCTION_SIZE, SEEK_SET);
-    fread(buffer, MV_INSTRUCTION_SIZE, 1, pipe->fd);
-
-    // Convert the buffer to an instruction
-    mv_instruction_t *instruction = malloc(sizeof(mv_instruction_t));
-    *instruction = mv_read_instruction(buffer);
-    free(buffer);
-
-    // Log the buffer as a single hex
-    TRACE("Read instruction: 0x%02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-
-    // Increment the index
-    pipe->index++;
-
-    return instruction;
+    WARN("mv_pipe_read_instruction is deprecated\n");
+    return NULL;
 }

@@ -4,14 +4,20 @@
 
 #include <stdio.h>
 
+#define BYTE_BUFFER_SIZE 1024
+
 /**
  * @brief Pipe structure
  */
 typedef struct
 {
-    FILE *fd;
+    int32_t fd;
     char *pipe_path;
-    uint32_t index; // Points to where the next instruction starts
+    uint64_t index;                           // Points to where the next instruction starts
+    mv_instruction_t *instruction_buffer;     // Buffer for the instruction
+    uint64_t instruction_count;               // Number of instructions in the buffer
+    uint8_t buffered_bytes[BYTE_BUFFER_SIZE]; // Buffer for the bytes
+    uint32_t buffered_bytes_count;            // Number of bytes in the buffer
 } mv_pipe;
 
 /**

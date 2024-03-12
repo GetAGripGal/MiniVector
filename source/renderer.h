@@ -55,9 +55,12 @@
     "vec4 dim_color(ivec2 pixel_coords, float power) {\n"                                                                                              \
     "   vec4 color = imageLoad(frame, pixel_coords);\n"                                                                                                \
     "   color.a -= power;\n"                                                                                                                           \
-    "   color.b -= power / 10.0;\n"                                                                                                                    \
+    "   color.b -= power / 100.0;\n"                                                                                                                   \
     "   if (color.a < 0.0) {\n"                                                                                                                        \
     "       color.a = 0.0;\n"                                                                                                                          \
+    "   }\n"                                                                                                                                           \
+    "   if (color.b < 0.0) {\n"                                                                                                                        \
+    "       color.b = 0.0;\n"                                                                                                                          \
     "   }\n"                                                                                                                                           \
     "   return color;\n"                                                                                                                               \
     "}\n"                                                                                                                                              \
@@ -152,60 +155,60 @@
     "   return col;\n"                                                                \
     "}\n"
 
-#define MV_ELECTRON_RENDERER_FRAGMENT_SHADER                                                               \
-    "#version 460 core\n"                                                                                  \
-    "\n"                                                                                                   \
-    "uniform sampler2D frame;\n"                                                                           \
-    "uniform vec2 resolution;\n"                                                                           \
-    "in vec2 uv;\n"                                                                                        \
-    "out vec4 FragColor;\n" MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLOOM                                     \
-        MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLUR                                                          \
-    "\n"                                                                                                   \
-    "vec4 smooth_pixel(sampler2D textureSampler, vec2 texCoords, vec2 textureSize) {\n"                    \
-    "    vec2 texelSize = 1.0 / textureSize;\n"                                                            \
-    "\n"                                                                                                   \
-    "    vec4 color = vec4(0.0);\n"                                                                        \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n"         \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"          \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"          \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"           \
-    "\n"                                                                                                   \
-    "    return color;\n"                                                                                  \
-    "}\n"                                                                                                  \
-    "vec2 crt_curve(vec2 uv) {\n"                                                                          \
-    "    uv = uv * 2.0 - 1.0;\n"                                                                           \
-    "    vec2 offset = abs(uv.yx) / vec2(6.0, 4.0);\n"                                                     \
-    "    uv = uv + uv * offset * offset;\n"                                                                \
-    "    uv = uv * 0.5 + 0.5;\n"                                                                           \
-    "    return uv;\n"                                                                                     \
-    "}\n"                                                                                                  \
-    "\n"                                                                                                   \
-    "vec4 crt_vignette(vec2 uv) {\n"                                                                       \
-    "    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);\n"                                    \
-    "    return vec4(vignette, vignette, vignette, 1.0);\n"                                                \
-    "}\n"                                                                                                  \
-    "\n"                                                                                                   \
-    "void main()\n"                                                                                        \
-    "{\n"                                                                                                  \
-    "   vec2 screen_uv = gl_FragCoord.xy / resolution;\n"                                                  \
-    "   vec2 crt_uv = screen_uv = crt_curve(screen_uv);\n"                                                 \
-    "   if (crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0) {\n"                     \
-    "       FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"                                                       \
-    "       return;\n"                                                                                     \
-    "   }\n"                                                                                               \
-    "   // Add crossair \n"                                                                                \
-    "   vec2 crossair = vec2(0.5, 0.5);\n"                                                                 \
-    "   float crossair_size = 0.001;\n"                                                                    \
-    "   if (abs(crt_uv.x - crossair.x) < crossair_size || abs(crt_uv.y - crossair.y) < crossair_size) {\n" \
-    "       FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"                                                       \
-    "       return;\n"                                                                                     \
-    "   }\n"                                                                                               \
-    "   vec4 color = smooth_pixel(frame, crt_uv, resolution);\n"                                           \
-    "   color = crt_vignette(crt_uv) * color;\n"                                                           \
-    "   color = blur(crt_uv, 3);\n"                                                                        \
-    "   color = clamp(color * 4.0, 0.0, 1.0);\n"                                                           \
-    "   // color = bloom(color, screen_uv);\n"                                                             \
-    "   FragColor = color;\n"                                                                              \
+#define MV_ELECTRON_RENDERER_FRAGMENT_SHADER                                                                 \
+    "#version 460 core\n"                                                                                    \
+    "\n"                                                                                                     \
+    "uniform sampler2D frame;\n"                                                                             \
+    "uniform vec2 resolution;\n"                                                                             \
+    "in vec2 uv;\n"                                                                                          \
+    "out vec4 FragColor;\n" MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLOOM                                       \
+        MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLUR                                                            \
+    "\n"                                                                                                     \
+    "vec4 smooth_pixel(sampler2D textureSampler, vec2 texCoords, vec2 textureSize) {\n"                      \
+    "    vec2 texelSize = 1.0 / textureSize;\n"                                                              \
+    "\n"                                                                                                     \
+    "    vec4 color = vec4(0.0);\n"                                                                          \
+    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n"           \
+    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"            \
+    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"            \
+    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"             \
+    "\n"                                                                                                     \
+    "    return color;\n"                                                                                    \
+    "}\n"                                                                                                    \
+    "vec2 crt_curve(vec2 uv) {\n"                                                                            \
+    "    uv = uv * 2.0 - 1.0;\n"                                                                             \
+    "    vec2 offset = abs(uv.yx) / vec2(6.0, 4.0);\n"                                                       \
+    "    uv = uv + uv * offset * offset;\n"                                                                  \
+    "    uv = uv * 0.5 + 0.5;\n"                                                                             \
+    "    return uv;\n"                                                                                       \
+    "}\n"                                                                                                    \
+    "\n"                                                                                                     \
+    "vec4 crt_vignette(vec2 uv) {\n"                                                                         \
+    "    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);\n"                                      \
+    "    return vec4(vignette, vignette, vignette, 1.0);\n"                                                  \
+    "}\n"                                                                                                    \
+    "\n"                                                                                                     \
+    "void main()\n"                                                                                          \
+    "{\n"                                                                                                    \
+    "   vec2 screen_uv = gl_FragCoord.xy / resolution;\n"                                                    \
+    "   vec2 crt_uv = screen_uv = crt_curve(screen_uv);\n"                                                   \
+    "   if (crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0) {\n"                       \
+    "       FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"                                                         \
+    "       return;\n"                                                                                       \
+    "   }\n"                                                                                                 \
+    "   // Add crossair \n"                                                                                  \
+    "   vec2 crossair = vec2(0.5, 0.5);\n"                                                                   \
+    "   float crossair_size = 0.001;\n"                                                                      \
+    "   //if (abs(crt_uv.x - crossair.x) < crossair_size || abs(crt_uv.y - crossair.y) < crossair_size) {\n" \
+    "   //    FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"                                                       \
+    "   //    return;\n"                                                                                     \
+    "   //}\n"                                                                                               \
+    "   vec4 color = smooth_pixel(frame, crt_uv, resolution);\n"                                             \
+    "   color = crt_vignette(crt_uv) * color;\n"                                                             \
+    "   color = blur(crt_uv, 3);\n"                                                                          \
+    "   color = clamp(color * 4.0, 0.0, 1.0);\n"                                                             \
+    "   // color = bloom(color, screen_uv);\n"                                                               \
+    "   FragColor = color;\n"                                                                                \
     "}\n"
 
 /**
