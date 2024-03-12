@@ -2,7 +2,7 @@
 
 A configurable XY vector display simulator for unix-like systems.
 
-![minivector_demo](docs/helloworld_minivector.gif)
+![minivector_demo](docs/radar.gif)
 
 ## TODO
 
