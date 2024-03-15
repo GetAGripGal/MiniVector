@@ -40,7 +40,7 @@ void mv_destroy_pipe(mv_pipe *pipe);
  * @param pipe Pipe to poll
  * @return The instruction read from the pipe
  */
-mv_instruction_t *mv_poll_pipe(mv_pipe *pipe);
+mv_instruction_t *mv_poll_pipe(mv_pipe *pipe, uint64_t instructions_per_frame);
 
 /**
  * @brief Read an instruction from the pipe

@@ -116,8 +116,6 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
     mv_state *state = (mv_state *)glfwGetWindowUserPointer(window);
     state->window->reported_size.width = width;
     state->window->reported_size.height = height;
-
-    mv_present_legacy_frame(state->frame_legacy, state->window, state->config.palette.primary);
 }
 
 /**
@@ -148,7 +146,10 @@ static void callback_key(GLFWwindow *window, int32_t key, int32_t scancode, int3
         }
         else
         {
-            glfwSetWindowMonitor(window, NULL, 0, 0, state->config.resolution.width, state->config.resolution.height, 0);
+            // Get the primary monitor
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, NULL, 0, 0, state->config.window.width, state->config.window.height, mode->refreshRate);
         }
     }
 }

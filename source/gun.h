@@ -13,6 +13,7 @@ typedef struct mv_electron_gun
     mv_point_t position; // The position of the gun
     mv_point_t target;   // The target to aim at
     int32_t powered_on;  // Whether the gun is powered on
+    float radius;        // The radius of the beam
 } mv_electron_gun;
 
 /**

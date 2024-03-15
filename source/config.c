@@ -20,9 +20,12 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                                "      -r,  --resolution <width> <height> Set the resolution\n"
                                "      -p,  --primary <color_hex>         Set the primary color\n"
                                "      -s,  --secondary <color_hex>       Set the secondary color\n"
+                               "    gun:\n"
+                               "      -rg, --radius <radius>             Set the radius of the electron gun\n"
                                "    executor:\n"
                                "      -i,  --pipe <pipe>                 Set the pipe to read the instructions\n"
                                "      -e,  --instruction-per-frame <n>   Set the number of instructions per frame\n"
+                               "      -fr, --frame-rate <n>              Set the frame rate\n"
                                "    legacy:\n"
                                "      -le, --legacy                      Use the legacy renderer\n"
                                "      -l,  --line-width <width>          Set the line width\n"
@@ -44,6 +47,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         },
         .executor = {
             .instruction_per_frame = DEFAULT_INSTRUCTION_PER_FRAME,
+            .frame_rate = DEFAULT_FRAME_RATE,
         },
         .line_width = DEFAULT_LINE_WIDTH,
         .pipe = DEFAULT_PIPE,
@@ -128,6 +132,28 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                 exit(1);
             }
             config.executor.instruction_per_frame = atoi(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-fr") == 0 || strcmp(argv[i], "--frame-rate") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.executor.frame_rate = atoi(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-rg") == 0 || strcmp(argv[i], "--radius") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.gun.radius = atof(argv[i + 1]);
             i += 1;
         }
         else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fullscreen") == 0)

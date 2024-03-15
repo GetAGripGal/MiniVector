@@ -2,6 +2,7 @@
 #include "log.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 /**
  * @brief Create the electron renderer
@@ -71,10 +72,15 @@ void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_el
 {
     glUseProgram(renderer->compute_program);
 
-    // Update the positions buffer
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, renderer->positions_buffer);
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(mv_electron_point) * positions_count, positions, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, renderer->positions_buffer);
+
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR)
+    {
+        ERROR("Failed to send points to the GPU: %u\n", error);
+    }
 
     // Bind the current texture
     glBindImageTexture(0, renderer->frame_texture[renderer->current_texture], 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
@@ -84,9 +90,13 @@ void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_el
     glUniform1i(glGetUniformLocation(renderer->compute_program, "positions_count"), positions_count);
     glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_position"), electron_gun->position.x, electron_gun->position.y);
     glUniform1i(glGetUniformLocation(renderer->compute_program, "electron_gun_power"), electron_gun->powered_on);
+    glUniform1f(glGetUniformLocation(renderer->compute_program, "electron_gun_radius"), electron_gun->radius);
 
-    glDispatchCompute(renderer->resolution.width / MV_ELECTRON_SHADER_DISPATCH_SIZE, renderer->resolution.height / MV_ELECTRON_SHADER_DISPATCH_SIZE, 1);
-    glMemoryBarrier(GL_ALL_BARRIER_BITS);
+    glDispatchCompute(
+        (GLuint)(renderer->resolution.width / MV_ELECTRON_SHADER_DISPATCH_SIZE),
+        (GLuint)(renderer->resolution.height / MV_ELECTRON_SHADER_DISPATCH_SIZE),
+        1);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 }
 
 /**

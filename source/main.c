@@ -5,6 +5,7 @@
 #include <glad/glad.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "config.h"
 #include "legacy/frame.h"
@@ -126,7 +127,7 @@ void legacy_loop(mv_state *state)
     while (!glfwWindowShouldClose(state->window->glfw_ptr))
     {
         // Poll the pipe
-        instruction = mv_poll_pipe(state->pipe);
+        instruction = mv_poll_pipe(state->pipe, state->config.executor.instruction_per_frame);
         // Process the instruction
         if (instruction)
         {
@@ -165,6 +166,9 @@ void modern_loop(mv_state *state)
     // The instructions per frame
     uint32_t instructions_per_frame = state->config.executor.instruction_per_frame;
 
+    // Update the electron gun
+    state->electron_gun->radius = state->config.gun.radius;
+
     // The buffer of positions
     mv_electron_point *positions = calloc(instructions_per_frame + 1, sizeof(mv_electron_point));
     uint32_t num_positions = 0;
@@ -180,32 +184,53 @@ void modern_loop(mv_state *state)
     double instruction_execution_time = 0;
     double compute_execution_time = 0;
     double render_execution_time = 0;
+    double fps = 0;
+    double frame_time = 0;
 
     // The main loop
     while (!glfwWindowShouldClose(state->window->glfw_ptr))
     {
+        now = glfwGetTime();
+        delta = now - last;
+
         // Set the title
-        sprintf(title, "MiniVector | %ffps | instruction_execution: %f | compute_execution: %f | frame_execution: %f", 1.0 / delta, instruction_execution_time, compute_execution_time, render_execution_time);
-        glfwSetWindowTitle(state->window->glfw_ptr, title);
+        if (now - frame_time >= 1.0)
+        {
+            frame_time = now;
+            sprintf(title, "MiniVector | %ufps | instruction_execution: %f | compute_execution: %f | frame_execution: %f", (uint16_t)fps, instruction_execution_time, compute_execution_time, render_execution_time);
+            glfwSetWindowTitle(state->window->glfw_ptr, title);
+            fps = 0;
+        }
+
+        // Frame cap
+        double frame_time = 1.0 / state->config.executor.frame_rate;
+        while (delta < frame_time)
+        {
+            double sleep_time = frame_time - delta;
+            usleep(sleep_time * 1000000);
+            now = glfwGetTime();
+            delta = now - last;
+        }
 
         // Execute instructions and keep track of the positions
         double instruction_execution_start = glfwGetTime();
         num_positions = 0;
         for (int32_t i = 0; i < instructions_per_frame; i++)
         {
-            instruction = mv_poll_pipe(state->pipe);
+            instruction = mv_poll_pipe(state->pipe, instructions_per_frame);
             if (!instruction)
             {
                 break;
             }
-            TRACE("Processing instruction type: %d\n", instruction->type);
             mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
             mv_update_electron_gun(state->electron_gun, delta);
             // Remove the first position if it is too large
             if (num_positions + 1 > instructions_per_frame)
             {
-                TRACE("Removing the first position\n");
-                memmove(positions, positions + 1, sizeof(mv_electron_point) * (num_positions - 1));
+                for (int32_t j = 0; j < num_positions - 1; j++)
+                {
+                    positions[j] = positions[j + 1];
+                }
                 num_positions--;
             }
             positions[num_positions++] = (mv_electron_point){
@@ -228,13 +253,11 @@ void modern_loop(mv_state *state)
         mv_present_window(state->window);
         double render_execution_end = glfwGetTime();
 
-        // Update the time
-        now = glfwGetTime();
-        delta = now - last;
-        last = now;
-
         instruction_execution_time = instruction_execution_end - instruction_execution_start;
         compute_execution_time = compute_execution_end - compute_execution_start;
         render_execution_time = render_execution_end - render_execution_start;
+
+        last = now;
+        fps++;
     }
 }

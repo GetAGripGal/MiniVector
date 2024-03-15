@@ -5,91 +5,97 @@
 #include "window.h"
 #include "color.h"
 
-#define MV_ELECTRON_SHADER_DISPATCH_SIZE 16
-
-#define MV_ELECTRON_RENDERER_COMPUTE_SHADER                                                                                                            \
-    "#version 460 core\n"                                                                                                                              \
-    "layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;\n"                                                                            \
-    "layout (rgba32f, binding = 0) uniform image2D frame;\n"                                                                                           \
-    "uniform vec3 primary_color;\n"                                                                                                                    \
-    "uniform vec3 secondary_color;\n"                                                                                                                  \
-    "\n"                                                                                                                                               \
-    "uniform vec2 electron_gun_position;\n"                                                                                                            \
-    "uniform bool electron_gun_power;\n"                                                                                                               \
-    "uniform int positions_count;\n"                                                                                                                   \
-    "\n"                                                                                                                                               \
-    "struct mv_electron_point {\n"                                                                                                                     \
-    "   float x;\n"                                                                                                                                    \
-    "   float y;\n"                                                                                                                                    \
-    "   int powered_on;\n"                                                                                                                             \
-    "};\n"                                                                                                                                             \
-    "\n"                                                                                                                                               \
-    "layout(std430, binding = 0) buffer positions_buffer {\n"                                                                                          \
-    "    mv_electron_point positions[];\n"                                                                                                             \
-    "};\n"                                                                                                                                             \
-    "\n"                                                                                                                                               \
-    "bool is_point_between_two_points(vec2 point, vec2 a, vec2 b, float radius) {\n"                                                                   \
-    "    vec2 ap = point - a;\n"                                                                                                                       \
-    "    vec2 ab = b - a;\n"                                                                                                                           \
-    "    \n"                                                                                                                                           \
-    "    // Calculate square of length of ab\n"                                                                                                        \
-    "    float abLengthSq = dot(ab, ab);\n"                                                                                                            \
-    "    \n"                                                                                                                                           \
-    "    // If abLengthSq is 0, a and b are the same point, return false\n"                                                                            \
-    "    if (abLengthSq == 0.0)\n"                                                                                                                     \
-    "        return false;\n"                                                                                                                          \
-    "    \n"                                                                                                                                           \
-    "    // Calculate parameter t along ab, clamped between 0 and 1\n"                                                                                 \
-    "    float t = clamp(dot(ap, ab) / abLengthSq, 0.0, 1.0);\n"                                                                                       \
-    "    \n"                                                                                                                                           \
-    "    // Calculate closest point on ab to the point\n"                                                                                              \
-    "    vec2 closest = a + t * ab;\n"                                                                                                                 \
-    "    \n"                                                                                                                                           \
-    "    // Calculate distance between closest point and the point\n"                                                                                  \
-    "    float dist = distance(point, closest);\n"                                                                                                     \
-    "    \n"                                                                                                                                           \
-    "    // Check if distance is within radius\n"                                                                                                      \
-    "    return dist <= radius;\n"                                                                                                                     \
-    "}\n"                                                                                                                                              \
-    "\n"                                                                                                                                               \
-    "vec4 dim_color(ivec2 pixel_coords, float power) {\n"                                                                                              \
-    "   vec4 color = imageLoad(frame, pixel_coords);\n"                                                                                                \
-    "   color.a -= power;\n"                                                                                                                           \
-    "   color.b -= power / 100.0;\n"                                                                                                                   \
-    "   if (color.a < 0.0) {\n"                                                                                                                        \
-    "       color.a = 0.0;\n"                                                                                                                          \
-    "   }\n"                                                                                                                                           \
-    "   if (color.b < 0.0) {\n"                                                                                                                        \
-    "       color.b = 0.0;\n"                                                                                                                          \
-    "   }\n"                                                                                                                                           \
-    "   return color;\n"                                                                                                                               \
-    "}\n"                                                                                                                                              \
-    "\n"                                                                                                                                               \
-    "bool should_draw(vec2 pixel_coords) {\n"                                                                                                          \
-    "   // If the point is in between the point behind it reached this frame, draw it\n"                                                               \
-    "   for (int i = 0; i < positions_count-1; i++) {\n"                                                                                               \
-    "       if (is_point_between_two_points(pixel_coords, vec2(positions[i].x, positions[i].y), vec2(positions[i + 1].x, positions[i + 1].y), 1)) {\n" \
-    "           if (positions[i].powered_on > 0 && positions[i + 1].powered_on > 0) {\n"                                                               \
-    "               return true;\n"                                                                                                                    \
-    "           }\n"                                                                                                                                   \
-    "       }\n"                                                                                                                                       \
-    "   }\n"                                                                                                                                           \
-    "   return false;\n"                                                                                                                               \
-    "}\n"                                                                                                                                              \
-    "\n"                                                                                                                                               \
-    "void main() {\n"                                                                                                                                  \
-    "   float dim = 0.01;\n"                                                                                                                           \
-    "   ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);\n"                                                                                       \
-    "   vec2 resolution = imageSize(frame);\n"                                                                                                         \
-    "   vec2 diff = vec2(pixel_coords) - floor(electron_gun_position);\n"                                                                              \
-    "   float distance = length(diff);\n"                                                                                                              \
-    "   if (distance < 1 || should_draw(vec2(pixel_coords))) {\n"                                                                                      \
-    "       float power = 1.0;//clamp(dim * distance, 0.0, 1.0);\n"                                                                                    \
-    "       imageStore(frame, pixel_coords, vec4(secondary_color, power));\n"                                                                          \
-    "       return;\n"                                                                                                                                 \
-    "   }\n"                                                                                                                                           \
-    "   vec4 dimmed = dim_color(pixel_coords, dim);\n"                                                                                                 \
-    "   imageStore(frame, pixel_coords, dimmed);\n"                                                                                                    \
+#define STR_IMPL_(x) #x
+#define STR(x) STR_IMPL_(x)
+#define MV_ELECTRON_SHADER_DISPATCH_SIZE 8
+#define MV_ELECTRON_SHADER_LAYOUT_CODE_STR "layout (local_size_x = " STR(MV_ELECTRON_SHADER_DISPATCH_SIZE) ", local_size_y = " STR(MV_ELECTRON_SHADER_DISPATCH_SIZE) ", local_size_z = 1) in;\n"
+#define MV_ELECTRON_RENDERER_COMPUTE_SHADER                                                                                                    \
+    "#version 460 core\n" MV_ELECTRON_SHADER_LAYOUT_CODE_STR                                                                                   \
+    "layout (rgba32f, binding = 0) uniform image2D frame;\n"                                                                                   \
+    "uniform vec3 primary_color;\n"                                                                                                            \
+    "uniform vec3 secondary_color;\n"                                                                                                          \
+    "\n"                                                                                                                                       \
+    "uniform vec2 electron_gun_position;\n"                                                                                                    \
+    "uniform bool electron_gun_power;\n"                                                                                                       \
+    "uniform float electron_gun_radius;\n"                                                                                                     \
+    "uniform int positions_count;\n"                                                                                                           \
+    "\n"                                                                                                                                       \
+    "struct mv_electron_point {\n"                                                                                                             \
+    "   float x;\n"                                                                                                                            \
+    "   float y;\n"                                                                                                                            \
+    "   bool powered_on;\n"                                                                                                                    \
+    "};\n"                                                                                                                                     \
+    "\n"                                                                                                                                       \
+    "layout(std430, binding = 0) buffer positions_buffer {\n"                                                                                  \
+    "    mv_electron_point positions[];\n"                                                                                                     \
+    "};\n"                                                                                                                                     \
+    "\n"                                                                                                                                       \
+    "bool is_point_between_two_points(vec2 point, vec2 a, vec2 b, float radius) {\n"                                                           \
+    "    vec2 ap = point - a;\n"                                                                                                               \
+    "    vec2 ab = b - a;\n"                                                                                                                   \
+    "    \n"                                                                                                                                   \
+    "    // Calculate square of length of ab\n"                                                                                                \
+    "    float abLengthSq = dot(ab, ab);\n"                                                                                                    \
+    "    \n"                                                                                                                                   \
+    "    // If abLengthSq is 0, a and b are the same point, return false\n"                                                                    \
+    "    if (abLengthSq == 0.0)\n"                                                                                                             \
+    "        return false;\n"                                                                                                                  \
+    "    \n"                                                                                                                                   \
+    "    // Calculate parameter t along ab, clamped between 0 and 1\n"                                                                         \
+    "    float t = clamp(dot(ap, ab) / abLengthSq, 0.0, 1.0);\n"                                                                               \
+    "    \n"                                                                                                                                   \
+    "    // Calculate closest point on ab to the point\n"                                                                                      \
+    "    vec2 closest = a + t * ab;\n"                                                                                                         \
+    "    \n"                                                                                                                                   \
+    "    // Calculate distance between closest point and the point\n"                                                                          \
+    "    float dist = distance(point, closest);\n"                                                                                             \
+    "    \n"                                                                                                                                   \
+    "    // Check if distance is within radius\n"                                                                                              \
+    "    return dist <= radius;\n"                                                                                                             \
+    "}\n"                                                                                                                                      \
+    "\n"                                                                                                                                       \
+    "vec4 dim_color(ivec2 pixel_coords, float power) {\n"                                                                                      \
+    "   vec4 color = imageLoad(frame, pixel_coords);\n"                                                                                        \
+    "   color.a -= power;\n"                                                                                                                   \
+    "   color.b -= power / 100.0;\n"                                                                                                           \
+    "   if (color.a < 0.0) {\n"                                                                                                                \
+    "       color.a = 0.0;\n"                                                                                                                  \
+    "   }\n"                                                                                                                                   \
+    "   if (color.b < 0.0) {\n"                                                                                                                \
+    "       color.b = 0.0;\n"                                                                                                                  \
+    "   }\n"                                                                                                                                   \
+    "   return color;\n"                                                                                                                       \
+    "}\n"                                                                                                                                      \
+    "\n"                                                                                                                                       \
+    "bool should_draw(vec2 pixel_coords) {\n"                                                                                                  \
+    "   // If the point is in between the point behind it reached this frame, draw it\n"                                                       \
+    "   for (int i = 0; i < positions_count-1; i++) {\n"                                                                                       \
+    "       mv_electron_point point = positions[i];\n"                                                                                         \
+    "       mv_electron_point next_point = positions[i + 1];\n"                                                                                \
+    "       if (is_point_between_two_points(pixel_coords, vec2(point.x, point.y), vec2(next_point.x, next_point.y), electron_gun_radius)) {\n" \
+    "           if (point.powered_on && next_point.powered_on) {\n"                                                                            \
+    "               return true;\n"                                                                                                            \
+    "           }\n"                                                                                                                           \
+    "       }\n"                                                                                                                               \
+    "   }\n"                                                                                                                                   \
+    "   return false;\n"                                                                                                                       \
+    "}\n"                                                                                                                                      \
+    "\n"                                                                                                                                       \
+    "void main() {\n"                                                                                                                          \
+    "   float dim = 0.03;\n"                                                                                                                   \
+    "   ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);\n"                                                                               \
+    "   ivec2 resolution = imageSize(frame).xy;\n"                                                                                             \
+    "   //pixel_coords.y = resolution.y - pixel_coords.y;\n"                                                                                   \
+    "   vec2 uv = vec2(pixel_coords) / vec2(resolution);\n"                                                                                    \
+    "   vec2 diff = vec2(pixel_coords) - floor(electron_gun_position);\n"                                                                      \
+    "   float distance = length(diff);\n"                                                                                                      \
+    "   if ((distance < electron_gun_radius && electron_gun_power) || should_draw(vec2(pixel_coords))) {\n"                                    \
+    "       float power = 1.0;//clamp(dim * distance, 0.0, 1.0);\n"                                                                            \
+    "       imageStore(frame, pixel_coords, vec4(secondary_color, power));\n"                                                                  \
+    "       return;\n"                                                                                                                         \
+    "   }\n"                                                                                                                                   \
+    "   vec4 dimmed = dim_color(pixel_coords, dim);\n"                                                                                         \
+    "   imageStore(frame, pixel_coords, dimmed);\n"                                                                                            \
     "}\n"
 
 #define MV_ELECTRON_RENDERER_VERTEX_SHADER                      \
@@ -155,60 +161,60 @@
     "   return col;\n"                                                                \
     "}\n"
 
-#define MV_ELECTRON_RENDERER_FRAGMENT_SHADER                                                                 \
-    "#version 460 core\n"                                                                                    \
-    "\n"                                                                                                     \
-    "uniform sampler2D frame;\n"                                                                             \
-    "uniform vec2 resolution;\n"                                                                             \
-    "in vec2 uv;\n"                                                                                          \
-    "out vec4 FragColor;\n" MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLOOM                                       \
-        MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLUR                                                            \
-    "\n"                                                                                                     \
-    "vec4 smooth_pixel(sampler2D textureSampler, vec2 texCoords, vec2 textureSize) {\n"                      \
-    "    vec2 texelSize = 1.0 / textureSize;\n"                                                              \
-    "\n"                                                                                                     \
-    "    vec4 color = vec4(0.0);\n"                                                                          \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n"           \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"            \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"            \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"             \
-    "\n"                                                                                                     \
-    "    return color;\n"                                                                                    \
-    "}\n"                                                                                                    \
-    "vec2 crt_curve(vec2 uv) {\n"                                                                            \
-    "    uv = uv * 2.0 - 1.0;\n"                                                                             \
-    "    vec2 offset = abs(uv.yx) / vec2(6.0, 4.0);\n"                                                       \
-    "    uv = uv + uv * offset * offset;\n"                                                                  \
-    "    uv = uv * 0.5 + 0.5;\n"                                                                             \
-    "    return uv;\n"                                                                                       \
-    "}\n"                                                                                                    \
-    "\n"                                                                                                     \
-    "vec4 crt_vignette(vec2 uv) {\n"                                                                         \
-    "    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);\n"                                      \
-    "    return vec4(vignette, vignette, vignette, 1.0);\n"                                                  \
-    "}\n"                                                                                                    \
-    "\n"                                                                                                     \
-    "void main()\n"                                                                                          \
-    "{\n"                                                                                                    \
-    "   vec2 screen_uv = gl_FragCoord.xy / resolution;\n"                                                    \
-    "   vec2 crt_uv = screen_uv = crt_curve(screen_uv);\n"                                                   \
-    "   if (crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0) {\n"                       \
-    "       FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"                                                         \
-    "       return;\n"                                                                                       \
-    "   }\n"                                                                                                 \
-    "   // Add crossair \n"                                                                                  \
-    "   vec2 crossair = vec2(0.5, 0.5);\n"                                                                   \
-    "   float crossair_size = 0.001;\n"                                                                      \
-    "   //if (abs(crt_uv.x - crossair.x) < crossair_size || abs(crt_uv.y - crossair.y) < crossair_size) {\n" \
-    "   //    FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"                                                       \
-    "   //    return;\n"                                                                                     \
-    "   //}\n"                                                                                               \
-    "   vec4 color = smooth_pixel(frame, crt_uv, resolution);\n"                                             \
-    "   color = crt_vignette(crt_uv) * color;\n"                                                             \
-    "   color = blur(crt_uv, 3);\n"                                                                          \
-    "   color = clamp(color * 4.0, 0.0, 1.0);\n"                                                             \
-    "   // color = bloom(color, screen_uv);\n"                                                               \
-    "   FragColor = color;\n"                                                                                \
+#define MV_ELECTRON_RENDERER_FRAGMENT_SHADER                                                                  \
+    "#version 460 core\n"                                                                                     \
+    "\n"                                                                                                      \
+    "uniform sampler2D frame;\n"                                                                              \
+    "uniform vec2 resolution;\n"                                                                              \
+    "in vec2 uv;\n"                                                                                           \
+    "out vec4 FragColor;\n" MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLOOM                                        \
+        MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLUR                                                             \
+    "\n"                                                                                                      \
+    "vec4 smooth_pixel(sampler2D textureSampler, vec2 texCoords, vec2 textureSize) {\n"                       \
+    "    vec2 texelSize = 1.0 / textureSize;\n"                                                               \
+    "\n"                                                                                                      \
+    "    vec4 color = vec4(0.0);\n"                                                                           \
+    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n"            \
+    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"             \
+    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"             \
+    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"              \
+    "\n"                                                                                                      \
+    "    return color;\n"                                                                                     \
+    "}\n"                                                                                                     \
+    "vec2 crt_curve(vec2 uv) {\n"                                                                             \
+    "    uv = uv * 2.0 - 1.0;\n"                                                                              \
+    "    vec2 offset = abs(uv.yx) / vec2(6.0, 4.0);\n"                                                        \
+    "    uv = uv + uv * offset * offset;\n"                                                                   \
+    "    uv = uv * 0.5 + 0.5;\n"                                                                              \
+    "    return uv;\n"                                                                                        \
+    "}\n"                                                                                                     \
+    "\n"                                                                                                      \
+    "vec4 crt_vignette(vec2 uv) {\n"                                                                          \
+    "    float vignette = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);\n"                                       \
+    "    return vec4(vignette, vignette, vignette, 1.0);\n"                                                   \
+    "}\n"                                                                                                     \
+    "\n"                                                                                                      \
+    "void main()\n"                                                                                           \
+    "{\n"                                                                                                     \
+    "   vec2 screen_uv = gl_FragCoord.xy / resolution;\n"                                                     \
+    "   vec2 crt_uv = screen_uv = crt_curve(screen_uv);\n"                                                    \
+    "   if (crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0) {\n"                        \
+    "        FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"                                                         \
+    "        return;\n"                                                                                       \
+    "   }\n"                                                                                                  \
+    "   // Add crossair \n"                                                                                   \
+    "   vec2 crossair = vec2(0.5, 0.5);\n"                                                                    \
+    "   float crossair_size = 0.001;\n"                                                                       \
+    "   // if (abs(crt_uv.x - crossair.x) < crossair_size || abs(crt_uv.y - crossair.y) < crossair_size) {\n" \
+    "   //     FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"                                                       \
+    "   //     return;\n"                                                                                     \
+    "   // }\n"                                                                                               \
+    "   vec4 color = smooth_pixel(frame, screen_uv, resolution);\n"                                           \
+    "   color = crt_vignette(crt_uv) * color;\n"                                                              \
+    "   color = blur(crt_uv, 3);\n"                                                                           \
+    "   color = clamp(color * 3.0, 0.0, 1.0);\n"                                                              \
+    "   color = bloom(color, screen_uv);\n"                                                                   \
+    "   FragColor = color;\n"                                                                                 \
     "}\n"
 
 /**
@@ -217,7 +223,7 @@
 typedef struct mv_electron_point
 {
     mv_point_t position;
-    int32_t powered_on;
+    uint32_t powered_on;
 } mv_electron_point;
 
 /**

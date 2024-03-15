@@ -18,6 +18,7 @@ mv_electron_gun *mv_create_electron_gun(void)
     gun->position = (mv_point_t){0, 0};
     gun->target = (mv_point_t){0, 0};
     gun->powered_on = 0;
+    gun->radius = 1.f;
     return gun;
 }
 
