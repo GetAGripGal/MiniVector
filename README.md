@@ -1,7 +1,3 @@
-## Notice
-Currently this is an older GL_LINES based renderer.
-Development continues in [electron_gun](https://github.com/ComLarsic/MiniVector/tree/electron_gun).
-
 # MiniVector
 
 A programmable XY vector display simulator for unix-like systems.
@@ -13,14 +9,12 @@ Written using GLFW, OpenGl and [HandmadeMath](https://github.com/HandmadeMath/Ha
 
 - Improve accuracy of fade-out
 - Add pipe for input and event polling (This will allow other applications to interact with the window / keyboard input)
-- Improve instruction reading by making it more performant
-- Windows support
+- [Windows 96](https://windows96.net/) support
 
 ### Pie in the sky
 
 There are some non-essential features I would like to add in the future.
 
-- [Windows 96](https://windows96.net/) support
 - Seperate utility for font rendering
 - Seperate utility for vector art drawing
 
@@ -41,20 +35,23 @@ cat test/drawings/hello_world.mv >> /tmp/mv_pipe   # Send instructions
 ```
 usage: ./bin/Debug/minivector [options]
 options:
-    window:
+    window: 
       -w,  --window <width> <height>     Set the window size
       -f   --fullscreen                  Set the window to fullscreen
     display:
       -r,  --resolution <width> <height> Set the resolution
       -p,  --primary <color_hex>         Set the primary color
       -s,  --secondary <color_hex>       Set the secondary color
+    gun:
+      -rg, --radius <radius>             Set the radius of the electron gun
+      -df, --dim-factor <factor>         Set the dim factor per frame
     executor:
       -i,  --pipe <pipe>                 Set the pipe to read the instructions
       -e,  --instruction-per-frame <n>   Set the number of instructions per frame
+      -fr, --frame-rate <n>              Set the frame rate
     legacy:
       -le, --legacy                      Use the legacy renderer
       -l,  --line-width <width>          Set the line width
-      -h,  --help                        Show this help message
 ```
 
 ## Instructions
