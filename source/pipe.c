@@ -94,7 +94,7 @@ void mv_poll_pipe(mv_pipe *pipe)
     while (1)
     {
         any_read = 0;
-        if (bytes_read = read(pipe->fd, buffer, sizeof(uint8_t)) > 0)
+        if ((bytes_read = read(pipe->fd, buffer, sizeof(uint8_t))) > 0)
         {
             for (int8_t i = 0; i < bytes_read; i++)
             {
@@ -173,7 +173,7 @@ void mv_poll_pipe(mv_pipe *pipe)
 }
 
 /* Win32 implementation of the pipe */
-#else
+#elif defined(_WIN32)
 #error "Win32 pipe implementation not yet implemented"
 #endif
 

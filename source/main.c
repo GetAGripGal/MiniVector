@@ -20,6 +20,11 @@
 #include "log.h"
 #include "state.h"
 
+#ifdef _WIN96
+    #include <win96/wex.h>
+    #include <win96/gui.h>
+#endif
+
 /**
  * @brief The main loop for the legacy renderer
  *
@@ -49,6 +54,16 @@ int32_t main(int32_t argc, char *argv[])
     // Read the config
     mv_config config = mv_read_config(argc, argv);
 
+    // Initialize the windows 96 window
+    #ifdef _WIN96
+        set_proc_title("minivector");
+
+	    // Show hidden GL window
+	    wnd_set_title(UI_PHANDLE_WND_GL, "minivector");
+	    wnd_set_size(UI_PHANDLE_WND_GL, config.window.width, config.window.height);
+	    wnd_show(UI_PHANDLE_WND_GL);
+    #endif
+
     // Create the window and load the opengl context
     mv_window *window = mv_create_window(config.window.width, config.window.height, "MiniVector");
 
@@ -57,8 +72,8 @@ int32_t main(int32_t argc, char *argv[])
     // Create the display
     if (config.legacy)
     {
-        display_legacy = mv_create_legacy_display(config.resolution.width, config.resolution.height);
-        renderer_legacy = mv_create_legacy_renderer(display_legacy);
+        display_legacy = mv_create_legacy_display();
+        renderer_legacy = mv_create_legacy_renderer();
         frame_legacy = mv_create_frame(config.resolution.width, config.resolution.height);
     }
     else
