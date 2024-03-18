@@ -21,6 +21,8 @@ uint32_t mv_coords_to_u32(int16_t x, int16_t y)
  */
 void mv_process_instruction(mv_instruction_t *instruction, mv_electron_gun *electron_gun, mv_electron_renderer *electron_renderer)
 {
+    TRACE("Processing instruction type: %u\n", instruction->type);
+
     switch (instruction->type)
     {
     case MV_INSTRUCTION_CLEAR:
@@ -80,6 +82,6 @@ mv_instruction_t mv_read_instruction(uint8_t *bytes)
 {
     mv_instruction_t instruction;
     instruction.type = bytes[0];
-    instruction.data = (bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4];
+    instruction.data = ((uint32_t)bytes[1] << 24) | (bytes[2] << 16) | (bytes[3] << 8) | bytes[4];
     return instruction;
 }

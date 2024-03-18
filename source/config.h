@@ -18,6 +18,7 @@
 
 #define DEFAULT_LINE_WIDTH 2
 #define DEFAULT_RADIUS 1
+#define DEFAULT_DIM_FACTOR 0.05
 
 #ifdef _WIN32
 #define DEFAULT_PIPE "~\\Temp\\v_pipe"
@@ -47,6 +48,7 @@ typedef struct mv_config
     struct // The gun
     {
         float radius;
+        float dim_factor;
     } gun;
     struct // The executor
     {

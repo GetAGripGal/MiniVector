@@ -91,6 +91,7 @@ void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_el
     glUniform2f(glGetUniformLocation(renderer->compute_program, "electron_gun_position"), electron_gun->position.x, electron_gun->position.y);
     glUniform1i(glGetUniformLocation(renderer->compute_program, "electron_gun_power"), electron_gun->powered_on);
     glUniform1f(glGetUniformLocation(renderer->compute_program, "electron_gun_radius"), electron_gun->radius);
+    glUniform1f(glGetUniformLocation(renderer->compute_program, "electron_gun_dim_factor"), electron_gun->dim_factor);
 
     glDispatchCompute(
         (GLuint)(renderer->resolution.width / MV_ELECTRON_SHADER_DISPATCH_SIZE),

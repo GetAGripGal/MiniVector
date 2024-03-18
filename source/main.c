@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #include "config.h"
 #include "legacy/frame.h"
@@ -67,7 +68,7 @@ int32_t main(int32_t argc, char *argv[])
     }
 
     // Open the pipe
-    mv_pipe *pipe = mv_create_pipe(config.pipe);
+    mv_pipe *pipe = mv_create_pipe(config.pipe, config.executor.instruction_per_frame);
 
     // Set the user pointer
     mv_state state = {
@@ -94,7 +95,9 @@ int32_t main(int32_t argc, char *argv[])
     }
     else
     {
+        mv_start_pipe_thread(pipe);
         modern_loop(&state);
+        pthread_cancel(pipe->thread);
     }
 
     // Cleanup
@@ -127,7 +130,7 @@ void legacy_loop(mv_state *state)
     while (!glfwWindowShouldClose(state->window->glfw_ptr))
     {
         // Poll the pipe
-        instruction = mv_poll_pipe(state->pipe, state->config.executor.instruction_per_frame);
+        instruction = mv_read_instruction_from_pipe(state->pipe);
         // Process the instruction
         if (instruction)
         {
@@ -168,6 +171,7 @@ void modern_loop(mv_state *state)
 
     // Update the electron gun
     state->electron_gun->radius = state->config.gun.radius;
+    state->electron_gun->dim_factor = state->config.gun.dim_factor;
 
     // The buffer of positions
     mv_electron_point *positions = calloc(instructions_per_frame + 1, sizeof(mv_electron_point));
@@ -204,12 +208,16 @@ void modern_loop(mv_state *state)
 
         // Frame cap
         double frame_time = 1.0 / state->config.executor.frame_rate;
-        while (delta < frame_time)
+
+        if (state->config.executor.frame_rate > 0)
         {
-            double sleep_time = frame_time - delta;
-            usleep(sleep_time * 1000000);
-            now = glfwGetTime();
-            delta = now - last;
+            while (delta < frame_time)
+            {
+                double sleep_time = frame_time - delta;
+                usleep(sleep_time * 1000000);
+                now = glfwGetTime();
+                delta = now - last;
+            }
         }
 
         // Execute instructions and keep track of the positions
@@ -217,7 +225,7 @@ void modern_loop(mv_state *state)
         num_positions = 0;
         for (int32_t i = 0; i < instructions_per_frame; i++)
         {
-            instruction = mv_poll_pipe(state->pipe, instructions_per_frame);
+            instruction = mv_read_instruction_from_pipe(state->pipe);
             if (!instruction)
             {
                 break;

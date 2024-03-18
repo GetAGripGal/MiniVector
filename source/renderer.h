@@ -19,6 +19,7 @@
     "uniform bool electron_gun_power;\n"                                                                                                       \
     "uniform float electron_gun_radius;\n"                                                                                                     \
     "uniform int positions_count;\n"                                                                                                           \
+    "uniform float electron_gun_dim_factor;\n"                                                                                                 \
     "\n"                                                                                                                                       \
     "struct mv_electron_point {\n"                                                                                                             \
     "   float x;\n"                                                                                                                            \
@@ -57,7 +58,7 @@
     "vec4 dim_color(ivec2 pixel_coords, float power) {\n"                                                                                      \
     "   vec4 color = imageLoad(frame, pixel_coords);\n"                                                                                        \
     "   color.a -= power;\n"                                                                                                                   \
-    "   color.b -= power / 100.0;\n"                                                                                                           \
+    "   color.b -= electron_gun_dim_factor / 10.0;\n"                                                                                          \
     "   if (color.a < 0.0) {\n"                                                                                                                \
     "       color.a = 0.0;\n"                                                                                                                  \
     "   }\n"                                                                                                                                   \
@@ -82,7 +83,7 @@
     "}\n"                                                                                                                                      \
     "\n"                                                                                                                                       \
     "void main() {\n"                                                                                                                          \
-    "   float dim = 0.03;\n"                                                                                                                   \
+    "   float dim = electron_gun_dim_factor;\n"                                                                                                \
     "   ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);\n"                                                                               \
     "   ivec2 resolution = imageSize(frame).xy;\n"                                                                                             \
     "   //pixel_coords.y = resolution.y - pixel_coords.y;\n"                                                                                   \

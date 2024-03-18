@@ -22,6 +22,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                                "      -s,  --secondary <color_hex>       Set the secondary color\n"
                                "    gun:\n"
                                "      -rg, --radius <radius>             Set the radius of the electron gun\n"
+                               "      -df, --dim-factor <factor>         Set the dim factor per frame\n"
                                "    executor:\n"
                                "      -i,  --pipe <pipe>                 Set the pipe to read the instructions\n"
                                "      -e,  --instruction-per-frame <n>   Set the number of instructions per frame\n"
@@ -48,6 +49,10 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         .executor = {
             .instruction_per_frame = DEFAULT_INSTRUCTION_PER_FRAME,
             .frame_rate = DEFAULT_FRAME_RATE,
+        },
+        .gun = {
+            .radius = DEFAULT_RADIUS,
+            .dim_factor = DEFAULT_DIM_FACTOR,
         },
         .line_width = DEFAULT_LINE_WIDTH,
         .pipe = DEFAULT_PIPE,
@@ -154,6 +159,17 @@ mv_config mv_read_config(int32_t argc, char *argv[])
                 exit(1);
             }
             config.gun.radius = atof(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-df") == 0 || strcmp(argv[i], "--dim-factor") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.gun.dim_factor = atof(argv[i + 1]);
             i += 1;
         }
         else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fullscreen") == 0)
