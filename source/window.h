@@ -62,3 +62,8 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height);
  * @brief The error callback
  */
 static void callback_error(int32_t error, const char *description);
+
+/**
+ * @brief The key callback
+ */
+static void callback_key(GLFWwindow *window, int32_t key, int32_t scancode, int32_t action, int32_t mods);

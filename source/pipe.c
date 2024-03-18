@@ -1,5 +1,5 @@
 #include "pipe.h"
-#include "display.h"
+#include "legacy/display.h"
 #include "log.h"
 
 #include <fcntl.h>
@@ -12,15 +12,24 @@
  * @brief Create a pipe
  *
  * @param pipe_path Path to the pipe
+ * @param instructions_per_frame The number of instructions per frame
  */
-mv_pipe *mv_create_pipe(char *pipe_path)
+mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
 {
     mv_pipe *pipe = malloc(sizeof(mv_pipe));
     pipe->pipe_path = pipe_path;
     pipe->index = 0;
+    pipe->instruction_buffer = malloc(sizeof(mv_instruction_t));
+    pipe->polled_instruction_buffer = malloc(sizeof(mv_instruction_t));
+    pipe->polled_instruction_count = 0;
+    pipe->instruction_count = 0;
+    pipe->buffered_bytes_count = 0;
+    pipe->instructions_per_frame = instructions_per_frame;
 
-    // Clear the pipe
-    remove(pipe->pipe_path);
+    // Create the pipe
+    mkfifo(pipe->pipe_path, 0666);
+    pipe->fd = open(pipe->pipe_path, O_RDWR | O_NONBLOCK);
+
     return pipe;
 }
 
@@ -31,6 +40,7 @@ mv_pipe *mv_create_pipe(char *pipe_path)
  */
 void mv_destroy_pipe(mv_pipe *pipe)
 {
+    pthread_join(pipe->thread, NULL);
     TRACE("Destroying pipe %s\n", pipe->pipe_path);
     // delete the pipe
     remove(pipe->pipe_path);
@@ -38,78 +48,165 @@ void mv_destroy_pipe(mv_pipe *pipe)
 }
 
 /**
+ * @brief Start the pipe thread
+ *
+ * @param pipe The pipe to start the thread for
+ * @param instructions_per_frame The number of instructions per frame
+ */
+void mv_start_pipe_thread(mv_pipe *pipe)
+{
+    // Create the thread that reads from the pipe
+    int32_t thread_create_result = pthread_create(&pipe->thread, NULL, (void *)mv_poll_pipe, pipe);
+    if (thread_create_result)
+    {
+        ERROR("Failed to create the pipe thread\n");
+        exit(1);
+    }
+
+    int32_t mutex_init_result = pthread_mutex_init(&pipe->instruction_buffer_lock, NULL);
+    if (mutex_init_result)
+    {
+        ERROR("Failed to create the pipe mutex\n");
+        exit(1);
+    }
+}
+
+/* Unix implementation of the pipe */
+#ifndef _WIN32
+
+/**
  * @brief Poll a pipe
  *
  * @param pipe Pipe to poll
- * @param display Display to operate on
- * @param frame Frame to operate on
- * @param renderer Renderer to operate on
+ * @return The instruction read from the pipe
  */
-void mv_poll_pipe(mv_pipe *pipe, mv_display *display, mv_frame *frame, mv_renderer *renderer)
+void mv_poll_pipe(mv_pipe *pipe)
 {
-    pipe->fd = fopen(pipe->pipe_path, "r");
+    uint64_t instructions_buffer_size = 5;
+    const int8_t instructions_buffer_increment = 10;
+    int8_t bytes_read = 0;
 
-    if (!pipe->fd)
+    static uint8_t last_any_read = 0;
+    int8_t any_read = 0;
+
+    int8_t buffer[BYTE_BUFFER_SIZE];
+
+    while (1)
     {
-        pipe->fd = fopen(pipe->pipe_path, "w");
-        if (!pipe->fd)
+        any_read = 0;
+        if (bytes_read = read(pipe->fd, buffer, sizeof(uint8_t)) > 0)
         {
-            ERROR("Unable to open pipe %s\n", pipe->pipe_path);
-            exit(1);
+            for (int8_t i = 0; i < bytes_read; i++)
+            {
+                if (pipe->buffered_bytes_count >= BYTE_BUFFER_SIZE)
+                {
+                    ERROR("Byte buffer overflow\n");
+                    exit(1);
+                }
+                pipe->buffered_bytes[pipe->buffered_bytes_count] = buffer[i];
+                pipe->buffered_bytes_count++;
+            }
+            any_read = 1;
         }
-        fclose(pipe->fd);
-        pipe->fd = fopen(pipe->pipe_path, "r");
-    }
 
-    mv_instruction_t *instruction = mv_pipe_read_instruction(pipe);
-    if (instruction)
-    {
-        mv_process_instruction(*instruction, display, frame, renderer);
-        free(instruction);
+        if ((pipe->polled_instruction_count >= pipe->instructions_per_frame) || !any_read && !last_any_read)
+        {
+            if (pipe->polled_instruction_count <= 0)
+            {
+                continue;
+            }
+
+            while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
+            {
+            }
+
+            // If the instructions have reached the instructions per frame, copy the polled instructions into the instruction buffer
+            pipe->instruction_buffer = realloc(pipe->instruction_buffer, (pipe->instruction_count + pipe->polled_instruction_count) * sizeof(mv_instruction_t));
+            for (int64_t i = 0; i < pipe->polled_instruction_count; i++)
+            {
+                pipe->instruction_buffer[pipe->instruction_count++] = pipe->polled_instruction_buffer[i];
+            }
+            pipe->polled_instruction_count = 0;
+
+            pthread_mutex_unlock(&pipe->instruction_buffer_lock);
+        }
+
+        last_any_read = any_read;
+
+        // If the amount of bytes in the buffer is big enough to contain an instruction
+        // Read the instruction, and remove it from the buffer
+        while (pipe->buffered_bytes_count >= MV_INSTRUCTION_SIZE)
+        {
+            // Reallocation of the instruction buffer
+            pipe->polled_instruction_buffer = realloc(pipe->polled_instruction_buffer, (pipe->polled_instruction_count + 1) * sizeof(mv_instruction_t));
+            if (pipe->polled_instruction_buffer == NULL)
+            {
+                ERROR("Failed to reallocate the polled instruction buffer\n");
+                exit(1);
+            }
+            mv_instruction_t instruction = (mv_instruction_t){
+                .type = pipe->buffered_bytes[0],
+                .data = (pipe->buffered_bytes[1] << 24) | (pipe->buffered_bytes[2] << 16) | (pipe->buffered_bytes[3] << 8) | pipe->buffered_bytes[4]};
+
+            pipe->polled_instruction_buffer[pipe->polled_instruction_count++] = instruction;
+
+            // TRACE("Read instruction(%d): %d, %d\n", pipe->polled_instruction_count, instruction.type, instruction.data);
+            // and move the rest of the buffer to the start
+            for (int8_t i = 0; i < pipe->buffered_bytes_count - MV_INSTRUCTION_SIZE; i++)
+            {
+                if (i + MV_INSTRUCTION_SIZE < BYTE_BUFFER_SIZE)
+                {
+                    continue;
+                }
+                pipe->buffered_bytes[i] = pipe->buffered_bytes[i + MV_INSTRUCTION_SIZE];
+            }
+            pipe->buffered_bytes_count -= MV_INSTRUCTION_SIZE;
+
+            // If the instruction buffer size is bigger than the max of int64_t, break
+            if (pipe->polled_instruction_count >= INT64_MAX)
+            {
+                ERROR("You have reached the int64_t limit of instructions. Well done\n");
+                exit(1);
+            }
+        }
     }
-    fclose(pipe->fd);
 }
 
+/* Win32 implementation of the pipe */
+#else
+#error "Win32 pipe implementation not yet implemented"
+#endif
+
 /**
- * @brief Read an instruction from the pipe and remove it from the pipe
+ * @brief Read an instruction from the pipe
  *
  * @param pipe Pipe to read from
  */
-mv_instruction_t *mv_pipe_read_instruction(mv_pipe *pipe)
+mv_instruction_t *mv_read_instruction_from_pipe(mv_pipe *pipe)
 {
-    // The index points to the start of the next instruction
-    // If the file is bigger than the index, there is a new instruction
-    uint32_t file_size = 0;
-    fseek(pipe->fd, 0L, SEEK_END);
-    file_size = ftell(pipe->fd);
-    fseek(pipe->fd, 0L, SEEK_END);
-    if (file_size < pipe->index * MV_INSTRUCTION_SIZE)
+
+    // Wait for the lock
+    while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
     {
-        TRACE("No new instruction in the pipe. File size is: %u, required: %u\n", file_size, pipe->index * sizeof(mv_instruction_t));
+    }
+
+    if (pipe->instruction_count <= 0)
+    {
+        pthread_mutex_unlock(&pipe->instruction_buffer_lock);
         return NULL;
     }
 
-    // Skip if the instruction is not ready
-    if (file_size < (pipe->index + 1) * MV_INSTRUCTION_SIZE)
+    if (pipe->index >= pipe->instruction_count)
     {
+        pipe->index = 0;
+        pipe->instruction_count = 0;
+        pthread_mutex_unlock(&pipe->instruction_buffer_lock);
         return NULL;
     }
 
-    // Read the latest instruction
-    uint8_t *buffer = malloc(MV_INSTRUCTION_SIZE);
-    fseek(pipe->fd, pipe->index * MV_INSTRUCTION_SIZE, SEEK_SET);
-    fread(buffer, MV_INSTRUCTION_SIZE, 1, pipe->fd);
+    mv_instruction_t *result = &pipe->instruction_buffer[pipe->index++];
 
-    // Convert the buffer to an instruction
-    mv_instruction_t *instruction = malloc(sizeof(mv_instruction_t));
-    *instruction = mv_read_instruction(buffer);
-    free(buffer);
+    pthread_mutex_unlock(&pipe->instruction_buffer_lock);
 
-    // Log the buffer as a single hex
-    TRACE("Read instruction: 0x%02X%02X%02X%02X%02X\n", buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
-
-    // Increment the index
-    pipe->index++;
-
-    return instruction;
+    return result;
 }

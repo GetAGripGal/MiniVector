@@ -11,20 +11,32 @@
  */
 mv_config mv_read_config(int32_t argc, char *argv[])
 {
-    static const char *usage = "Usage: %s [options]\n"
-                               "Options:\n"
-                               "  -w, --window <width> <height>     Set the window size\n"
-                               "  -r, --resolution <width> <height> Set the resolution\n"
-                               "  -p, --primary <color_hex>         Set the primary color\n"
-                               "  -s, --secondary <color_hex>       Set the secondary color\n"
-                               "  -l, --line-width <width>          Set the line width\n"
-                               "  -i, --pipe <pipe>                 Set the pipe to read the instructions\n"
-                               "  -h, --help                        Show this help message\n";
+    static const char *usage = "usage: %s [options]\n"
+                               "options:\n"
+                               "    window: \n"
+                               "      -w,  --window <width> <height>     Set the window size\n"
+                               "      -f   --fullscreen                  Set the window to fullscreen\n"
+                               "    display:\n"
+                               "      -r,  --resolution <width> <height> Set the resolution\n"
+                               "      -p,  --primary <color_hex>         Set the primary color\n"
+                               "      -s,  --secondary <color_hex>       Set the secondary color\n"
+                               "    gun:\n"
+                               "      -rg, --radius <radius>             Set the radius of the electron gun\n"
+                               "      -df, --dim-factor <factor>         Set the dim factor per frame\n"
+                               "    executor:\n"
+                               "      -i,  --pipe <pipe>                 Set the pipe to read the instructions\n"
+                               "      -e,  --instruction-per-frame <n>   Set the number of instructions per frame\n"
+                               "      -fr, --frame-rate <n>              Set the frame rate\n"
+                               "    legacy:\n"
+                               "      -le, --legacy                      Use the legacy renderer\n"
+                               "      -l,  --line-width <width>          Set the line width\n"
+                               "      -h,  --help                        Show this help message\n";
     // The default configuration
     mv_config config = {
         .window = {
             .width = DEFAILT_WINDOW_WIDTH,
             .height = DEFAILT_WINDOW_HEIGHT,
+            .fullscreen = 0,
         },
         .resolution = {
             .width = DEFAULT_RESOLUTION_WIDTH,
@@ -34,8 +46,17 @@ mv_config mv_read_config(int32_t argc, char *argv[])
             .primary = DEFAULT_PRIMARY_COLOR,
             .secondary = DEFAULT_SECONDARY_COLOR,
         },
+        .executor = {
+            .instruction_per_frame = DEFAULT_INSTRUCTION_PER_FRAME,
+            .frame_rate = DEFAULT_FRAME_RATE,
+        },
+        .gun = {
+            .radius = DEFAULT_RADIUS,
+            .dim_factor = DEFAULT_DIM_FACTOR,
+        },
         .line_width = DEFAULT_LINE_WIDTH,
         .pipe = DEFAULT_PIPE,
+        .legacy = 0,
     };
     for (int32_t i = 1; i < argc; ++i)
     {
@@ -106,6 +127,58 @@ mv_config mv_read_config(int32_t argc, char *argv[])
             }
             config.pipe = argv[i + 1];
             i += 1;
+        }
+        else if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--instruction-per-frame") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.executor.instruction_per_frame = atoi(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-fr") == 0 || strcmp(argv[i], "--frame-rate") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.executor.frame_rate = atoi(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-rg") == 0 || strcmp(argv[i], "--radius") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.gun.radius = atof(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-df") == 0 || strcmp(argv[i], "--dim-factor") == 0)
+        {
+            if (i + 1 >= argc)
+            {
+                ERROR("Expected one argument after '%s'\n", argv[i]);
+                printf(usage, argv[0]);
+                exit(1);
+            }
+            config.gun.dim_factor = atof(argv[i + 1]);
+            i += 1;
+        }
+        else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--fullscreen") == 0)
+        {
+            config.window.fullscreen = 1;
+        }
+        else if (strcmp(argv[i], "-le") == 0 || strcmp(argv[i], "--legacy") == 0)
+        {
+            config.legacy = 1;
         }
         else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
         {

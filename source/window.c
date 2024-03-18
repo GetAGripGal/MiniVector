@@ -44,6 +44,7 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
 
     INFO("Glfw window created\n");
     glfwMakeContextCurrent(window->glfw_ptr);
+    glfwSwapInterval(0);
 
     // Load GLAD
     TRACE("Loading GLAD\n");
@@ -56,6 +57,8 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
 
     // Set the resize callback
     glfwSetFramebufferSizeCallback(window->glfw_ptr, callback_resize);
+    // Set the key callback
+    glfwSetKeyCallback(window->glfw_ptr, callback_key);
 
     INFO("Window created\n");
     return window;
@@ -67,6 +70,7 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
  */
 void mv_destroy_window(mv_window *window)
 {
+    TRACE("Destroying window\n");
     glfwDestroyWindow(window->glfw_ptr);
     glfwTerminate();
     free(window);
@@ -112,8 +116,6 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
     mv_state *state = (mv_state *)glfwGetWindowUserPointer(window);
     state->window->reported_size.width = width;
     state->window->reported_size.height = height;
-
-    mv_present_frame(state->frame, state->window);
 }
 
 /**
@@ -123,4 +125,31 @@ static void callback_error(int32_t error, const char *description)
 {
     ERROR("GLFW Error: %s\n", description);
     exit(1);
+}
+
+/**
+ * @brief The key callback
+ */
+static void callback_key(GLFWwindow *window, int32_t key, int32_t scancode, int32_t action, int32_t mods)
+{
+    if (key == GLFW_KEY_F11 && action == GLFW_PRESS)
+    {
+        // Toggle fullscreen
+        mv_state *state = (mv_state *)glfwGetWindowUserPointer(window);
+        state->config.window.fullscreen = !state->config.window.fullscreen;
+        if (state->config.window.fullscreen)
+        {
+            // Get the primary monitor
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
+        }
+        else
+        {
+            // Get the primary monitor
+            GLFWmonitor *monitor = glfwGetPrimaryMonitor();
+            const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+            glfwSetWindowMonitor(window, NULL, 0, 0, state->config.window.width, state->config.window.height, mode->refreshRate);
+        }
+    }
 }

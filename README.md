@@ -7,26 +7,20 @@ Development continues in [electron_gun](https://github.com/ComLarsic/MiniVector/
 A programmable XY vector display simulator for unix-like systems.
 Written using GLFW, OpenGl and [HandmadeMath](https://github.com/HandmadeMath/HandmadeMath).
 
-![minivector_demo](docs/minivector_demo.png)
+![minivector_demo](docs/radar.gif)
 
 ## TODO
 
-Currently the simulator is nothing more than a line renderer.
-However, later on I would like to implement full electron gun simulation.
-
-There are several things required before full 1.0 release:
-
-- Replace line rendering with compute shader raserizer
-- Implement electron gun simulation instead of GL_LINES
-- Change instruction set to work with electron gun movement instead of drawing points directly
-- Add shader to simulate a vector display
+- Improve accuracy of fade-out
+- Add pipe for input and event polling (This will allow other applications to interact with the window / keyboard input)
+- Improve instruction reading by making it more performant
+- Windows support
 
 ### Pie in the sky
 
 There are some non-essential features I would like to add in the future.
 
 - [Windows 96](https://windows96.net/) support
-- Windows support
 - Seperate utility for font rendering
 - Seperate utility for vector art drawing
 
@@ -38,22 +32,29 @@ Applications can write instructions to this pipe which will be executed by miniv
 Example
 
 ```bash
-nohup minivector &                            # Run detached
-cat test/drawings/smiley.mv >> /tmp/mv_pipe   # Send instructions
+nohup minivector &                                 # Run detached
+cat test/drawings/hello_world.mv >> /tmp/mv_pipe   # Send instructions
 ```
 
 ### Options
 
-```s
-Usage: microvector [options]
-  Options:
-  -w, --window <width> <height>     Set the window size
-  -r, --resolution <width> <height> Set the resolution
-  -p, --primary <color_hex>         Set the primary color
-  -s, --secondary <color_hex>       Set the secondary color
-  -l, --line-width <width>          Set the line width
-  -i, --pipe <pipe>                 Set the pipe to read the instructions
-  -h, --help                        Show this help message
+```
+usage: ./bin/Debug/minivector [options]
+options:
+    window:
+      -w,  --window <width> <height>     Set the window size
+      -f   --fullscreen                  Set the window to fullscreen
+    display:
+      -r,  --resolution <width> <height> Set the resolution
+      -p,  --primary <color_hex>         Set the primary color
+      -s,  --secondary <color_hex>       Set the secondary color
+    executor:
+      -i,  --pipe <pipe>                 Set the pipe to read the instructions
+      -e,  --instruction-per-frame <n>   Set the number of instructions per frame
+    legacy:
+      -le, --legacy                      Use the legacy renderer
+      -l,  --line-width <width>          Set the line width
+      -h,  --help                        Show this help message
 ```
 
 ## Instructions
@@ -75,8 +76,22 @@ Instructions are 40 bits of data.
 The following is a list of supported instructions and their additional data
 
 ```
-- 0x00000000 : Clear display    [No Data]
-- 0x00000001 : Add point        [X: ii6, Y: i16]
+- 0x00000000 : Clear display      [No Data]
+- 0x00000001 : Move to position   [X: ii6, Y: i16]
+- 0x00000010 : Electron gun on    [No Data]
+- 0x00000011 : Electron gun off   [No Data]
+```
+
+### Legacy Mode
+
+Legacy mode is the original GL_LINES-based proof of concept.
+This mode is perserved for because I like it :3
+
+This mode supports a limited subset of instructions
+
+```
+- 0x00000000 : Clear display      [No Data]
+- 0x00000001 : Move to position   [X: ii6, Y: i16]
 ```
 
 ## Building
