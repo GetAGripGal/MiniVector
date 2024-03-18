@@ -1,6 +1,6 @@
 # MiniVector
 
-A programmable XY vector display simulator for unix-like systems.
+A programmable XY vector display simulator for unix-like systems and [Windows 96](https://windows96.net/).
 Written using GLFW, OpenGl and [HandmadeMath](https://github.com/HandmadeMath/HandmadeMath).
 
 ![minivector_demo](docs/radar.gif)
@@ -103,7 +103,7 @@ You can clone the repo and all its repositories with `--recursive`:
 git clone https://github.com/ComLarsic/MiniVector.git --recursive
 ```
 
-### Building
+### Building UNIX
 
 Generate the makefiles using premake.
 Then build it using make:
@@ -112,4 +112,12 @@ Then build it using make:
 premake5 gmake
 cd build
 make
+```
+
+### Building Windows96
+Building and packaging for windows 96 can be done with this handy dandy script:
+
+```
+chmod +x ./win96pack.sh
+./win96pack.sh
 ```
