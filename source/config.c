@@ -64,7 +64,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 2 >= argc)
             {
-                ERROR("Expected two arguments after '%s'\n", argv[i]);
+                MV_ERROR("Expected two arguments after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -76,7 +76,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 2 >= argc)
             {
-                ERROR("Expected two arguments after '%s'\n", argv[i]);
+                MV_ERROR("Expected two arguments after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -88,7 +88,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -99,7 +99,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -110,7 +110,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -121,7 +121,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -132,7 +132,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -143,7 +143,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -154,7 +154,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -165,7 +165,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         {
             if (i + 1 >= argc)
             {
-                ERROR("Expected one argument after '%s'\n", argv[i]);
+                MV_ERROR("Expected one argument after '%s'\n", argv[i]);
                 printf(usage, argv[0]);
                 exit(1);
             }
@@ -187,7 +187,7 @@ mv_config mv_read_config(int32_t argc, char *argv[])
         }
         else
         {
-            ERROR("Unknown option '%s'\n", argv[i]);
+            MV_ERROR("Unknown option '%s'\n", argv[i]);
             printf(usage, argv[0]);
             exit(1);
         }

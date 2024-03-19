@@ -21,28 +21,28 @@ uint32_t mv_coords_to_u32(int16_t x, int16_t y)
  */
 void mv_process_instruction(mv_instruction_t *instruction, mv_electron_gun *electron_gun, mv_electron_renderer *electron_renderer)
 {
-    TRACE("Processing instruction type: %u\n", instruction->type);
+    MV_TRACE("Processing instruction type: %u\n", instruction->type);
 
     switch (instruction->type)
     {
     case MV_INSTRUCTION_CLEAR:
         mv_clear_frame(electron_renderer);
-        TRACE("Cleared frame\n");
+        MV_TRACE("Cleared frame\n");
         break;
     case MV_INSTRUCTION_SET_TARGET:
         mv_aim_electron_gun(electron_gun, (mv_point_t){instruction->data >> 16, instruction->data & 0xFFFF});
-        TRACE("Aimed electron gun at %u, %u\n", instruction->data >> 16, instruction->data & 0xFFFF)
+        MV_TRACE("Aimed electron gun at %u, %u\n", instruction->data >> 16, instruction->data & 0xFFFF)
         break;
     case MV_INSTRUCTION_POWER_OFF:
         mv_power_off_electron_gun(electron_gun);
-        TRACE("Powered off electron gun\n");
+        MV_TRACE("Powered off electron gun\n");
         break;
     case MV_INSTRUCTION_POWER_ON:
         mv_power_on_electron_gun(electron_gun);
-        TRACE("Powered on electron gun\n");
+        MV_TRACE("Powered on electron gun\n");
         break;
     default:
-        WARN("Unknown instruction type: %u\n", instruction->type);
+        MV_WARN("Unknown instruction type: %u\n", instruction->type);
         break;
     }
 }
@@ -67,7 +67,7 @@ void mv_process_instruction_legacy(mv_instruction_t *instruction, mv_legacy_disp
         mv_add_point_legacy(display, instruction->data >> 16, instruction->data & 0xFFFF);
         break;
     default:
-        WARN("Instruction type: %u unsupported in legacy\n", instruction->type);
+        MV_WARN("Instruction type: %u unsupported in legacy\n", instruction->type);
         break;
     }
 }

@@ -21,8 +21,11 @@
 #include "state.h"
 
 #ifdef _WIN96
-    #include <win96/wex.h>
-    #include <win96/gui.h>
+#include <win96/wex.h>
+#include <win96/gui.h>
+#include <emscripten.h>
+
+#include "support/win96.h"
 #endif
 
 /**
@@ -50,19 +53,19 @@ int32_t main(int32_t argc, char *argv[])
     mv_electron_gun *electron_gun = NULL;
     mv_electron_renderer *electron_renderer = NULL;
 
-    INFO("Starting the application\n");
+    MV_INFO("Starting the application\n");
     // Read the config
     mv_config config = mv_read_config(argc, argv);
 
-    // Initialize the windows 96 window
-    #ifdef _WIN96
-        set_proc_title("minivector");
+// Initialize the windows 96 window
+#ifdef _WIN96
+    set_proc_title("minivector");
 
-	    // Show hidden GL window
-	    wnd_set_title(UI_PHANDLE_WND_GL, "minivector");
-	    wnd_set_size(UI_PHANDLE_WND_GL, config.window.width, config.window.height);
-	    wnd_show(UI_PHANDLE_WND_GL);
-    #endif
+    // Show hidden GL window
+    wnd_set_title(UI_PHANDLE_WND_GL, "minivector");
+    wnd_set_size(UI_PHANDLE_WND_GL, config.window.width, config.window.height);
+    wnd_show(UI_PHANDLE_WND_GL);
+#endif
 
     // Create the window and load the opengl context
     mv_window *window = mv_create_window(config.window.width, config.window.height, "MiniVector");
@@ -103,7 +106,7 @@ int32_t main(int32_t argc, char *argv[])
     mv_color_t secondary = config.palette.secondary;
 
     // The main loop
-    TRACE("Starting the main loop\n");
+    MV_TRACE("Starting the main loop\n");
     if (config.legacy)
     {
         legacy_loop(&state);
@@ -111,12 +114,19 @@ int32_t main(int32_t argc, char *argv[])
     else
     {
         mv_start_pipe_thread(pipe);
+
+#ifdef _WIN96
+        mv_support_win96_init(&state);
+
+        emscripten_set_main_loop_arg(mv_support_win96_event_loop, NULL, config.executor.frame_rate, 1);
+#else
         modern_loop(&state);
+#endif
         pthread_cancel(pipe->thread);
     }
 
     // Cleanup
-    TRACE("Cleaning up\n");
+    MV_TRACE("Cleaning up\n");
     mv_destroy_window(window);
     if (config.legacy)
     {
@@ -246,7 +256,7 @@ void modern_loop(mv_state *state)
                 break;
             }
             mv_process_instruction(instruction, state->electron_gun, state->electron_renderer);
-            mv_update_electron_gun(state->electron_gun, delta);
+            mv_update_electron_gun(state->electron_gun);
             // Remove the first position if it is too large
             if (num_positions + 1 > instructions_per_frame)
             {

@@ -6,133 +6,147 @@ newoption {
 
 -- Workspace
 workspace "minivector"
-    configurations { "Debug", "Release" }
-    location "build"
+configurations { "Debug", "Release" }
+location "build"
 
 -- GLFW project
 project "glfw"
 
-    language "C"
-    targetdir "build/bin/%{cfg.buildcfg}"
+language "C"
+targetdir "build/bin/%{cfg.buildcfg}"
 
-    files {
-        "vendor/glfw/include/GLFW/**.h",
-        "vendor/glfw/src/**.c",
-    }
+files {
+    "vendor/glfw/include/GLFW/**.h",
+    "vendor/glfw/src/**.c",
+}
 
-    -- Include directories
-    includedirs {
-        "vendor/glfw/include",
-    }
+-- Include directories
+includedirs {
+    "vendor/glfw/include",
+}
 
 
-    -- Windows 96
-    filter "not options:win96"
-        kind "SharedLib"
+-- Windows 96
+filter "not options:win96"
+kind "SharedLib"
 
-    filter "options:win96"
-        kind "StaticLib"
+filter "options:win96"
+kind "StaticLib"
 
-    -- Platform specific
-    filter { "system:linux", "not options:win96" }
-        defines { "_GLFW_X11" }
-        links {
-            "X11",
-            "Xrandr",
-            "Xi",
-            "Xxf86vm",
-            "Xinerama",
-            "Xcursor",
-            "GL",
-            "rt",
-            "m",
-            "dl",
-            "pthread",
-        }
+-- Platform specific
+filter { "system:linux", "not options:win96" }
+defines { "_GLFW_X11" }
+links {
+    "X11",
+    "Xrandr",
+    "Xi",
+    "Xxf86vm",
+    "Xinerama",
+    "Xcursor",
+    "GL",
+    "rt",
+    "m",
+    "dl",
+    "pthread",
+}
 
-    filter { "system:windows", "not options:win96" }
-        defines { "_GLFW_WIN32" }
+filter { "system:windows", "not options:win96" }
+defines { "_GLFW_WIN32" }
 
-        filter "configurations:Debug"
-        defines { "DEBUG" }
-        symbols "On"
+links {
+    "opengl32",
+    "gdi32"
+}
 
-        filter "configurations:Release"
-        defines { "NDEBUG" }
-        optimize "On"
+filter "configurations:Debug"
+defines { "DEBUG" }
+symbols "On"
+
+filter "configurations:Release"
+defines { "NDEBUG" }
+optimize "On"
+
 
 -- Win96 sdk project
 project "win96"
-    kind "StaticLib"
-    language "C"
-    targetdir "build/bin/%{cfg.buildcfg}"
+kind "StaticLib"
+language "C"
+targetdir "build/bin/%{cfg.buildcfg}"
 
-    includedirs {
-        "vendor/win96sdk/sdklib/include",
-    }
+includedirs {
+    "vendor/win96sdk/sdklib/include",
+}
 
-    filter "options:win96"
-        files {
-            "vendor/win96sdk/sdklib/include/win96/**.h",
-            "vendor/win96sdk/sdklib/src/**.c",
-        }
+filter "options:win96"
+files {
+    "vendor/win96sdk/sdklib/include/win96/**.h",
+    "vendor/win96sdk/sdklib/src/**.c",
+}
 
 -- MicroVector project
 project "minivector"
-    kind "ConsoleApp"
-    language "C"
-    targetdir "build/bin/%{cfg.buildcfg}"
+kind "ConsoleApp"
+language "C"
+targetdir "build/bin/%{cfg.buildcfg}"
 
-    files {
-        "source/**.h",
-        "source/**.c",
-        "source/legacy/**.h",
-        "source/legacy/**.c",
+files {
+    "source/**.h",
+    "source/**.c",
+    "source/legacy/**.h",
+    "source/legacy/**.c",
 
-        -- Glad
-        "vendor/glad/include/glad/**.h",
-        "vendor/glad/include/KHR/**.h",
-        "vendor/glad/src/**.c",
+    -- Glad
+    "vendor/glad/include/glad/**.h",
+    "vendor/glad/include/KHR/**.h",
+    "vendor/glad/src/**.c",
 
-        -- HandmadeMath
-        "vendor/HandmadeMath/**.h",
-    }
+    -- HandmadeMath
+    "vendor/HandmadeMath/**.h",
+}
 
-    -- Include directories
-    includedirs {
-        "source",
-        "source/legacy",
+-- Include directories
+includedirs {
+    "source",
+    "source/legacy",
 
-        "vendor/glad/include",
-        "vendor/HandmadeMath",
-        "vendor/glfw/include",
+    "vendor/glad/include",
+    "vendor/HandmadeMath",
+    "vendor/glfw/include",
 
-        "vendor/win96sdk/sdklib/include",
-    }
+    "vendor/win96sdk/sdklib/include",
+}
 
 
-    -- Windows 96
-    filter { "options:win96" }
-        defines { "_WIN96" }
-        buildoptions { "-pthread" }
-        linkoptions { "-s USE_GLFW=3 -USE_PTHREADS=1" }
-        links { "win96" }
+-- Windows 96
+filter { "options:win96" }
+defines { "_WIN96" }
+buildoptions { "-pthread" }
+linkoptions { "-s USE_GLFW=3 -USE_PTHREADS=1" }
+links { "win96" }
 
-    -- Platform specific
-    filter { "system:windows", "not options:win96" }
-        links { "OpenGL32" }
+-- Platform specific
+filter { "system:windows", "not options:win96" }
+links {
+    "glfw",
+    "opengl32",
+    "gdi32",
+    "pthread",
+}
+linkoptions {
+    "-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic"
+}
 
-    filter { "system:linux", "not options:win96" }
-        links {
-            "glfw",
-            "dl",
-            "m"
-        }
+filter { "system:linux", "not options:win96" }
+links {
+    "glfw",
+    "dl",
+    "m"
+}
 
-    filter "configurations:Debug"
-        defines { "DEBUG" }
-        symbols "On"
+filter "configurations:Debug"
+defines { "DEBUG" }
+symbols "On"
 
-    filter "configurations:Release"
-        defines { "NDEBUG" }
-        optimize "On"
+filter "configurations:Release"
+defines { "NDEBUG" }
+optimize "On"

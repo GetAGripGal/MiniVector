@@ -8,6 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /**
  * @brief Create a pipe
  *
@@ -16,6 +20,7 @@
  */
 mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
 {
+    MV_INFO("Setting up pipe");
     mv_pipe *pipe = malloc(sizeof(mv_pipe));
     pipe->pipe_path = pipe_path;
     pipe->index = 0;
@@ -26,9 +31,19 @@ mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
     pipe->buffered_bytes_count = 0;
     pipe->instructions_per_frame = instructions_per_frame;
 
-    // Create the pipe
+// Create the pipe
+#ifdef __unix__
     mkfifo(pipe->pipe_path, 0666);
     pipe->fd = open(pipe->pipe_path, O_RDWR | O_NONBLOCK);
+#elif defined(_WIN32)
+    pipe->fd = CreateNamedPipe(pipe->pipe_path, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT, 1, 0, 0, 0, NULL);
+    if (pipe->fd == INVALID_HANDLE_VALUE)
+    {
+        MV_ERROR("Failed to create the pipe\n");
+        exit(1);
+    }
+    ConnectNamedPipe(pipe->fd, NULL);
+#endif
 
     return pipe;
 }
@@ -41,7 +56,7 @@ mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
 void mv_destroy_pipe(mv_pipe *pipe)
 {
     pthread_join(pipe->thread, NULL);
-    TRACE("Destroying pipe %s\n", pipe->pipe_path);
+    MV_TRACE("Destroying pipe %s\n", pipe->pipe_path);
     // delete the pipe
     remove(pipe->pipe_path);
     free(pipe);
@@ -59,20 +74,17 @@ void mv_start_pipe_thread(mv_pipe *pipe)
     int32_t thread_create_result = pthread_create(&pipe->thread, NULL, (void *)mv_poll_pipe, pipe);
     if (thread_create_result)
     {
-        ERROR("Failed to create the pipe thread\n");
+        MV_ERROR("Failed to create the pipe thread\n");
         exit(1);
     }
 
     int32_t mutex_init_result = pthread_mutex_init(&pipe->instruction_buffer_lock, NULL);
     if (mutex_init_result)
     {
-        ERROR("Failed to create the pipe mutex\n");
+        MV_ERROR("Failed to create the pipe mutex\n");
         exit(1);
     }
 }
-
-/* Unix implementation of the pipe */
-#ifndef _WIN32
 
 /**
  * @brief Poll a pipe
@@ -82,9 +94,15 @@ void mv_start_pipe_thread(mv_pipe *pipe)
  */
 void mv_poll_pipe(mv_pipe *pipe)
 {
-    uint64_t instructions_buffer_size = 5;
+#ifdef __unix__
+    typedef uint8_t word_t;
+#elif defined(_WIN32)
+    typedef DWORD word_t;
+#endif
+
+    word_t instructions_buffer_size = 5;
     const int8_t instructions_buffer_increment = 10;
-    int8_t bytes_read = 0;
+    word_t bytes_read = 0;
 
     static uint8_t last_any_read = 0;
     int8_t any_read = 0;
@@ -93,14 +111,15 @@ void mv_poll_pipe(mv_pipe *pipe)
 
     while (1)
     {
+#ifdef __unix__
         any_read = 0;
         if ((bytes_read = read(pipe->fd, buffer, sizeof(uint8_t))) > 0)
         {
-            for (int8_t i = 0; i < bytes_read; i++)
+            for (word_t i = 0; i < bytes_read; i++)
             {
                 if (pipe->buffered_bytes_count >= BYTE_BUFFER_SIZE)
                 {
-                    ERROR("Byte buffer overflow\n");
+                    MV_ERROR("Byte buffer overflow\n");
                     exit(1);
                 }
                 pipe->buffered_bytes[pipe->buffered_bytes_count] = buffer[i];
@@ -108,6 +127,23 @@ void mv_poll_pipe(mv_pipe *pipe)
             }
             any_read = 1;
         }
+#elif defined(_WIN32)
+        any_read = 0;
+        if (ReadFile(pipe->fd, buffer, sizeof(uint8_t), &bytes_read, NULL))
+        {
+            for (word_t i = 0; i < bytes_read; i++)
+            {
+                if (pipe->buffered_bytes_count >= BYTE_BUFFER_SIZE)
+                {
+                    MV_ERROR("Byte buffer overflow\n");
+                    exit(1);
+                }
+                pipe->buffered_bytes[pipe->buffered_bytes_count] = buffer[i];
+                pipe->buffered_bytes_count++;
+            }
+            any_read = 1;
+        }
+#endif
 
         if ((pipe->polled_instruction_count >= pipe->instructions_per_frame) || !any_read && !last_any_read)
         {
@@ -141,7 +177,7 @@ void mv_poll_pipe(mv_pipe *pipe)
             pipe->polled_instruction_buffer = realloc(pipe->polled_instruction_buffer, (pipe->polled_instruction_count + 1) * sizeof(mv_instruction_t));
             if (pipe->polled_instruction_buffer == NULL)
             {
-                ERROR("Failed to reallocate the polled instruction buffer\n");
+                MV_ERROR("Failed to reallocate the polled instruction buffer\n");
                 exit(1);
             }
             mv_instruction_t instruction = (mv_instruction_t){
@@ -165,17 +201,12 @@ void mv_poll_pipe(mv_pipe *pipe)
             // If the instruction buffer size is bigger than the max of int64_t, break
             if (pipe->polled_instruction_count >= INT64_MAX)
             {
-                ERROR("You have reached the int64_t limit of instructions. Well done\n");
+                MV_ERROR("You have reached the int64_t limit of instructions. Well done\n");
                 exit(1);
             }
         }
     }
 }
-
-/* Win32 implementation of the pipe */
-#elif defined(_WIN32)
-#error "Win32 pipe implementation not yet implemented"
-#endif
 
 /**
  * @brief Read an instruction from the pipe

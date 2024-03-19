@@ -7,12 +7,23 @@
 
 #define BYTE_BUFFER_SIZE 8000
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /**
  * @brief Pipe structure
  */
 typedef struct
 {
+// The file descriptor for the pipe
+#ifdef __unix__
     int32_t fd;
+#endif
+#ifdef _WIN32
+    HANDLE fd;
+#endif
+
     char *pipe_path;
     uint64_t index;                              // Points to where the next instruction starts
     mv_instruction_t *instruction_buffer;        // Buffer for the instruction

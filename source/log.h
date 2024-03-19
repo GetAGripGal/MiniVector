@@ -5,14 +5,14 @@
 
 #ifdef DEBUG
 
-#define TRACE(...) printf("[\x1B[36mT\x1B[37m] " __VA_ARGS__);
-#define INFO(...) printf("[\x1B[32mI\x1B[37m] " __VA_ARGS__)
-#define WARN(...) printf("[\x1B[33mW\x1B[37m] " __VA_ARGS__)
-#define ERROR(...) printf("[\x1B[31mE\x1B[37m] " __VA_ARGS__)
+#define MV_TRACE(...) printf("[\x1B[36mT\x1B[37m] " __VA_ARGS__);
+#define MV_INFO(...) printf("[\x1B[32mI\x1B[37m] " __VA_ARGS__)
+#define MV_WARN(...) printf("[\x1B[33mW\x1B[37m] " __VA_ARGS__)
+#define MV_ERROR(...) printf("[\x1B[31mE\x1B[37m] " __VA_ARGS__)
 
 #else
-#define TRACE(...)
-#define INFO(...) printf("[\x1B[32mI\x1B[37m] " __VA_ARGS__)
-#define WARN(...) printf("[\x1B[33mW\x1B[37m] " __VA_ARGS__)
-#define ERROR(...) printf("[\x1B[31mE\x1B[37m] " __VA_ARGS__)
+#define MV_TRACE(...)
+#define MV_INFO(...) printf("[\x1B[32mI\x1B[37m] " __VA_ARGS__)
+#define MV_WARN(...) printf("[\x1B[33mW\x1B[37m] " __VA_ARGS__)
+#define MV_ERROR(...) printf("[\x1B[31mE\x1B[37m] " __VA_ARGS__)
 #endif
