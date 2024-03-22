@@ -4,6 +4,17 @@
 
 #include <stdlib.h>
 
+#ifdef _WIN96
+#include <win96/wex.h>
+#include <win96/gui.h>
+#include <emscripten.h>
+#define MV_EXIT(i) \
+    wquit(i);      \
+    emscripten_force_exit(i)
+#else
+#define MV_EXIT(i) exit(i)
+#endif
+
 /**
  * @brief Create a window
  * @param width The width of the window
@@ -17,50 +28,58 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
     window->reported_size.width = width;
     window->reported_size.height = height;
 
-    TRACE("Initializing GLFW\n");
+    MV_TRACE("Initializing GLFW\n");
     glfwSetErrorCallback(callback_error);
     if (glfwInit() == GLFW_FALSE)
     {
-        ERROR("Failed to initialize GLFW\n");
-        exit(1);
+        MV_ERROR("Failed to initialize GLFW\n");
+        MV_EXIT(1);
     }
-    INFO("GLFW initialized\n");
+    MV_INFO("GLFW initialized\n");
 
     // Create the window
-    TRACE("Creating glfw window | { width: %u, height: %u, title: %s }\n", width, height, title);
+    MV_INFO("Creating glfw window | { width: %u, height: %u, title: %s }\n", width, height, title);
+#ifdef _WIN96
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+#else
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#endif
     GLFWwindow *ptr = glfwCreateWindow(width, height, "MiniVector", NULL, NULL);
     if (!ptr)
     {
-        ERROR("Failed to create window\n");
+        MV_ERROR("Failed to create window\n");
         glfwTerminate();
-        exit(1);
+        MV_EXIT(1);
     }
     window->glfw_ptr = ptr;
 
-    INFO("Glfw window created\n");
+    MV_INFO("Glfw window created\n");
     glfwMakeContextCurrent(window->glfw_ptr);
     glfwSwapInterval(0);
 
     // Load GLAD
-    TRACE("Loading GLAD\n");
+#ifndef _WIN96
+    MV_TRACE("Loading GLAD\n");
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
-        ERROR("Error: Failed to initialize GLAD\n");
-        exit(1);
+        MV_ERROR("Error: Failed to initialize GLAD\n");
+        MV_EXIT(1);
     }
-    INFO("GLAD loaded\n");
+    MV_INFO("GLAD loaded\n");
+#endif
 
     // Set the resize callback
     glfwSetFramebufferSizeCallback(window->glfw_ptr, callback_resize);
     // Set the key callback
     glfwSetKeyCallback(window->glfw_ptr, callback_key);
 
-    INFO("Window created\n");
+    MV_INFO("Window created\n");
     return window;
 }
 
@@ -70,7 +89,7 @@ mv_window *mv_create_window(uint32_t width, uint32_t height, const char *title)
  */
 void mv_destroy_window(mv_window *window)
 {
-    TRACE("Destroying window\n");
+    MV_TRACE("Destroying window\n");
     glfwDestroyWindow(window->glfw_ptr);
     glfwTerminate();
     free(window);
@@ -82,8 +101,14 @@ void mv_destroy_window(mv_window *window)
  */
 void mv_present_window(mv_window *window)
 {
+
+#ifndef _WIN96
     glViewport(0, 0, window->reported_size.width, window->reported_size.height);
+#else
+    // gui_alertbox("INFO", "POLLED", "OK", 0);
+#endif
     glfwSwapBuffers(window->glfw_ptr);
+
     glfwPollEvents();
 }
 
@@ -123,8 +148,8 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
  */
 static void callback_error(int32_t error, const char *description)
 {
-    ERROR("GLFW Error: %s\n", description);
-    exit(1);
+    MV_ERROR("GLFW Error: %s\n", description);
+    MV_EXIT(1);
 }
 
 /**

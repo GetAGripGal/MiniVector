@@ -105,7 +105,7 @@ typedef struct mv_legacy_frame
  * @param height The height of the framebuffer
  * @return The framebuffer
  */
-mv_legacy_frame *mv_create_frame(int32_t width, int32_t height);
+mv_legacy_frame *mv_create_legacy_frame(int32_t width, int32_t height);
 
 /**
  * @brief Destroy the framebuffer

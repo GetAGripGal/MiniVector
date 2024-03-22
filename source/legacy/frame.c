@@ -11,7 +11,7 @@
  * @param height The height of the framebuffer
  * @return The framebuffer
  */
-mv_legacy_frame *mv_create_frame(int32_t width, int32_t height)
+mv_legacy_frame *mv_create_legacy_frame(int32_t width, int32_t height)
 {
     mv_legacy_frame *frame = (mv_legacy_frame *)malloc(sizeof(mv_legacy_frame));
     frame->fbo = 0;
@@ -21,14 +21,14 @@ mv_legacy_frame *mv_create_frame(int32_t width, int32_t height)
     create_texture(frame, width, height);
     create_vao(frame);
 
-    TRACE("Compiling the framebuffer shader\n");
+    MV_TRACE("Compiling the framebuffer shader\n");
     frame->shader = mv_create_shader(MV_VERTEX_SHADER, MV_FRAGMENT_SHADER_CRT);
-    INFO("Compiled framebuffer shader\n");
+    MV_INFO("Compiled framebuffer shader\n");
 
     GLenum error = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (error != GL_FRAMEBUFFER_COMPLETE)
     {
-        ERROR("Framebuffer is not complete: %u\n", error);
+        MV_ERROR("Framebuffer is not complete: %u\n", error);
         exit(1);
     }
 

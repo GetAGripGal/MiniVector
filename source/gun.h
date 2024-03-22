@@ -55,7 +55,7 @@ void mv_aim_electron_gun(mv_electron_gun *gun, mv_point_t target);
  * @param gun The electron gun to update
  * @param delta The time since the last frame
  */
-void mv_update_electron_gun(mv_electron_gun *gun, float delta);
+void mv_update_electron_gun(mv_electron_gun *gun);
 
 /**
  * @brief Destroys the electron gun

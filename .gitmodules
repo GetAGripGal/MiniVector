@@ -4,3 +4,7 @@
 [submodule "vendor/glfw"]
 	path = vendor/glfw
 	url = https://github.com/glfw/glfw.git
+[submodule "vendor/win96sdk"]
+	path = vendor/win96sdk
+	url = https://git.sys36.net/windows-96/sdk/c-cpp-sdk.git
+	branch = develop

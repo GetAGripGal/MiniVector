@@ -79,7 +79,7 @@ void mv_calculate_pixels_electron_renderer(mv_electron_renderer *renderer, mv_el
     GLenum error = glGetError();
     if (error != GL_NO_ERROR)
     {
-        ERROR("Failed to send points to the GPU: %u\n", error);
+        MV_ERROR("Failed to send points to the GPU: %u\n", error);
     }
 
     // Bind the current texture
@@ -113,7 +113,7 @@ void mv_render_electron_gun(mv_electron_renderer *renderer, mv_electron_gun *ele
 {
     if (renderer->clear)
     {
-        TRACE("Clearing the frame\n");
+        MV_TRACE("Clearing the frame\n");
         glBindTexture(GL_TEXTURE_2D, renderer->frame_texture[!renderer->current_texture]);
 
         // Clear the texture by filling it with zeros
@@ -127,7 +127,7 @@ void mv_render_electron_gun(mv_electron_renderer *renderer, mv_electron_gun *ele
         GLenum error = glGetError();
         if (error != GL_NO_ERROR)
         {
-            ERROR("Failed to clear the frame: %d\n", error);
+            MV_ERROR("Failed to clear the frame: %d\n", error);
         }
 
         renderer->clear = 0;
@@ -174,7 +174,7 @@ static GLuint create_compute_shader(const char *source)
     {
         GLchar info_log[512];
         glGetShaderInfoLog(shader, 512, NULL, info_log);
-        ERROR("Compute shader compilation failed: %s\n", info_log);
+        MV_ERROR("Compute shader compilation failed: %s\n", info_log);
     }
 
     GLuint program = glCreateProgram();
@@ -186,7 +186,7 @@ static GLuint create_compute_shader(const char *source)
     {
         GLchar info_log[512];
         glGetProgramInfoLog(program, 512, NULL, info_log);
-        ERROR("Program linking failed: %s\n", info_log);
+        MV_ERROR("Program linking failed: %s\n", info_log);
     }
 
     glDeleteShader(shader);

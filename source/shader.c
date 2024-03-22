@@ -22,7 +22,7 @@ mv_shader *mv_create_shader(const char *vertex_shader, const char *fragment_shad
     {
         GLchar info_log[512];
         glGetShaderInfoLog(vertex, 512, NULL, info_log);
-        ERROR("Vertex shader compilation failed: %s\n", info_log);
+        MV_ERROR("Vertex shader compilation failed: %s\n", info_log);
     }
 
     GLuint fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -34,7 +34,7 @@ mv_shader *mv_create_shader(const char *vertex_shader, const char *fragment_shad
     {
         GLchar info_log[512];
         glGetShaderInfoLog(fragment, 512, NULL, info_log);
-        ERROR("Fragment shader compilation failed: %s\n", info_log);
+        MV_ERROR("Fragment shader compilation failed: %s\n", info_log);
     }
 
     glAttachShader(shader->program, vertex);
@@ -46,7 +46,7 @@ mv_shader *mv_create_shader(const char *vertex_shader, const char *fragment_shad
     {
         GLchar info_log[512];
         glGetProgramInfoLog(shader->program, 512, NULL, info_log);
-        ERROR("Shader linking failed: %s\n", info_log);
+        MV_ERROR("Shader linking failed: %s\n", info_log);
     }
 
     glDeleteShader(vertex);

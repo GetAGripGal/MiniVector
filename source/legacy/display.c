@@ -40,7 +40,7 @@ void mv_set_line_width_legacy(mv_legacy_display *display, uint16_t width)
 
     if (width < range[0] || width > range[1])
     {
-        ERROR("The current OpenGL context onlu supports the line width range: %f-%f\n", range[0], range[1]);
+        MV_ERROR("The current OpenGL context onlu supports the line width range: %f-%f\n", range[0], range[1]);
         return;
     }
 

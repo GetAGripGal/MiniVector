@@ -3,16 +3,30 @@
 #include "instruction.h"
 
 #include <stdio.h>
+
+#ifdef __unix__
 #include <pthread.h>
+#endif
 
 #define BYTE_BUFFER_SIZE 8000
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /**
  * @brief Pipe structure
  */
 typedef struct
 {
+// The file descriptor for the pipe
+#ifdef __unix__
     int32_t fd;
+#endif
+#ifdef _WIN32
+    HANDLE fd;
+#endif
+
     char *pipe_path;
     uint64_t index;                              // Points to where the next instruction starts
     mv_instruction_t *instruction_buffer;        // Buffer for the instruction
@@ -22,9 +36,14 @@ typedef struct
     uint8_t buffered_bytes[BYTE_BUFFER_SIZE];    // Buffer for the bytes
     uint32_t buffered_bytes_count;               // Number of bytes in the buffer
 
-    // The thread that reads from the pipe
+// The thread that reads from the pipe
+#ifdef __unix__
     pthread_t thread;
     pthread_mutex_t instruction_buffer_lock;
+#elif defined(_WIN32)
+    HANDLE thread;
+    HANDLE instruction_buffer_lock;
+#endif
 
     // The number of instructions per frame
     uint64_t instructions_per_frame;
