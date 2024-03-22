@@ -2,11 +2,14 @@
 #include "legacy/display.h"
 #include "log.h"
 
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __unix__
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#endif
 
 #ifdef _WIN32
 #include <windows.h>
@@ -32,7 +35,7 @@ mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
     pipe->instructions_per_frame = instructions_per_frame;
 
 // Create the pipe
-#ifdef __unix__
+#if defined(__unix__) || defined(_WIN96)
     mkfifo(pipe->pipe_path, 0666);
     pipe->fd = open(pipe->pipe_path, O_RDWR | O_NONBLOCK);
 #elif defined(_WIN32)
@@ -55,7 +58,11 @@ mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
  */
 void mv_destroy_pipe(mv_pipe *pipe)
 {
-    pthread_join(pipe->thread, NULL);
+#ifdef __unix__
+    pthread_cancel(pipe->thread);
+#elif defined(_WIN32)
+    TerminateThread(pipe->thread, 0);
+#endif
     MV_TRACE("Destroying pipe %s\n", pipe->pipe_path);
     // delete the pipe
     remove(pipe->pipe_path);
@@ -70,6 +77,8 @@ void mv_destroy_pipe(mv_pipe *pipe)
  */
 void mv_start_pipe_thread(mv_pipe *pipe)
 {
+#ifdef __unix__
+
     // Create the thread that reads from the pipe
     int32_t thread_create_result = pthread_create(&pipe->thread, NULL, (void *)mv_poll_pipe, pipe);
     if (thread_create_result)
@@ -84,6 +93,22 @@ void mv_start_pipe_thread(mv_pipe *pipe)
         MV_ERROR("Failed to create the pipe mutex\n");
         exit(1);
     }
+#elif defined(_WIN32)
+    pipe->thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)mv_poll_pipe, pipe, 0, NULL);
+    if (pipe->thread == NULL)
+    {
+        MV_ERROR("Failed to create the pipe thread\n");
+        exit(1);
+    }
+
+    pipe->instruction_buffer_lock = CreateMutex(NULL, FALSE, NULL);
+    if (pipe->instruction_buffer_lock == NULL)
+    {
+        MV_ERROR("Failed to create the pipe mutex\n");
+        exit(1);
+    }
+
+#endif
 }
 
 /**
@@ -95,7 +120,7 @@ void mv_start_pipe_thread(mv_pipe *pipe)
 void mv_poll_pipe(mv_pipe *pipe)
 {
 #ifdef __unix__
-    typedef uint8_t word_t;
+    typedef ssize_t word_t;
 #elif defined(_WIN32)
     typedef DWORD word_t;
 #endif
@@ -119,7 +144,7 @@ void mv_poll_pipe(mv_pipe *pipe)
             {
                 if (pipe->buffered_bytes_count >= BYTE_BUFFER_SIZE)
                 {
-                    MV_ERROR("Byte buffer overflow\n");
+                    MV_ERROR("Byte buffer overflow: %d\n", pipe->buffered_bytes_count);
                     exit(1);
                 }
                 pipe->buffered_bytes[pipe->buffered_bytes_count] = buffer[i];
@@ -152,9 +177,13 @@ void mv_poll_pipe(mv_pipe *pipe)
                 continue;
             }
 
+#ifdef __unix__
             while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
             {
             }
+#elif defined(_WIN32)
+            WaitForSingleObject(pipe->instruction_buffer_lock, INFINITE);
+#endif
 
             // If the instructions have reached the instructions per frame, copy the polled instructions into the instruction buffer
             pipe->instruction_buffer = realloc(pipe->instruction_buffer, (pipe->instruction_count + pipe->polled_instruction_count) * sizeof(mv_instruction_t));
@@ -163,8 +192,11 @@ void mv_poll_pipe(mv_pipe *pipe)
                 pipe->instruction_buffer[pipe->instruction_count++] = pipe->polled_instruction_buffer[i];
             }
             pipe->polled_instruction_count = 0;
-
+#ifdef __unix__
             pthread_mutex_unlock(&pipe->instruction_buffer_lock);
+#elif defined(_WIN32)
+            ReleaseMutex(pipe->instruction_buffer_lock);
+#endif
         }
 
         last_any_read = any_read;
@@ -216,14 +248,22 @@ void mv_poll_pipe(mv_pipe *pipe)
 mv_instruction_t *mv_read_instruction_from_pipe(mv_pipe *pipe)
 {
 
-    // Wait for the lock
+// Wait for the lock
+#ifdef __unix__
     while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
     {
     }
+#elif defined(_WIN32)
+    WaitForSingleObject(pipe->instruction_buffer_lock, INFINITE);
+#endif
 
     if (pipe->instruction_count <= 0)
     {
+#ifdef __unix__
         pthread_mutex_unlock(&pipe->instruction_buffer_lock);
+#elif defined(_WIN32)
+        ReleaseMutex(pipe->instruction_buffer_lock);
+#endif
         return NULL;
     }
 
@@ -231,13 +271,21 @@ mv_instruction_t *mv_read_instruction_from_pipe(mv_pipe *pipe)
     {
         pipe->index = 0;
         pipe->instruction_count = 0;
+#ifdef __unix__
         pthread_mutex_unlock(&pipe->instruction_buffer_lock);
+#elif defined(_WIN32)
+        ReleaseMutex(pipe->instruction_buffer_lock);
+#endif
         return NULL;
     }
 
     mv_instruction_t *result = &pipe->instruction_buffer[pipe->index++];
 
+#ifdef __unix__
     pthread_mutex_unlock(&pipe->instruction_buffer_lock);
+#elif defined(_WIN32)
+    ReleaseMutex(pipe->instruction_buffer_lock);
+#endif
 
     return result;
 }

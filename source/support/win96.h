@@ -9,10 +9,6 @@
 #include "../point.h"
 #include "../state.h"
 
-// State management
-static mv_state *win96_state;
-static mv_electron_point *win96_position_buffer = NULL;
-
 /**
  * @brief Initializes the Windows 96 support library
  *
@@ -23,6 +19,6 @@ void mv_support_win96_init(mv_state *state);
 /**
  * @brief The emscripten-compliant event loop for Windows 96
  */
-void mv_support_win96_event_loop();
+void mv_support_win96_event_loop(mv_state *state);
 
 #endif // _WIN96

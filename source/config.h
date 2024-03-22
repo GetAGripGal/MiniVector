@@ -4,8 +4,8 @@
 
 #include "color.h"
 
-#define DEFAILT_WINDOW_WIDTH 800
-#define DEFAILT_WINDOW_HEIGHT 600
+#define DEFAILT_WINDOW_WIDTH 640
+#define DEFAILT_WINDOW_HEIGHT 480
 
 #define DEFAULT_RESOLUTION_WIDTH 320
 #define DEFAULT_RESOLUTION_HEIGHT 180
@@ -21,7 +21,7 @@
 #define DEFAULT_DIM_FACTOR 0.05
 
 #ifdef _WIN32
-#define DEFAULT_PIPE "~\\Temp\\v_pipe"
+#define DEFAULT_PIPE "\\\\.\\pipe\\mv_pipe"
 #else
 #define DEFAULT_PIPE "/tmp/mv_pipe"
 #endif

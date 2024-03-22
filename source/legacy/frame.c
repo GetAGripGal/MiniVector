@@ -11,7 +11,7 @@
  * @param height The height of the framebuffer
  * @return The framebuffer
  */
-mv_legacy_frame *mv_create_frame(int32_t width, int32_t height)
+mv_legacy_frame *mv_create_legacy_frame(int32_t width, int32_t height)
 {
     mv_legacy_frame *frame = (mv_legacy_frame *)malloc(sizeof(mv_legacy_frame));
     frame->fbo = 0;

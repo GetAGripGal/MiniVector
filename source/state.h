@@ -25,6 +25,7 @@ typedef struct mv_state
     // The electron renderer
     mv_electron_gun *electron_gun;
     mv_electron_renderer *electron_renderer;
+    mv_electron_point *electron_position_buffer;
 
     // Whether the application is in legacy mode
     int8_t legacy;

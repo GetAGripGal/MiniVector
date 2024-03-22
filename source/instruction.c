@@ -26,12 +26,14 @@ void mv_process_instruction(mv_instruction_t *instruction, mv_electron_gun *elec
     switch (instruction->type)
     {
     case MV_INSTRUCTION_CLEAR:
+#ifndef _WIN96
         mv_clear_frame(electron_renderer);
+#endif
         MV_TRACE("Cleared frame\n");
         break;
     case MV_INSTRUCTION_SET_TARGET:
         mv_aim_electron_gun(electron_gun, (mv_point_t){instruction->data >> 16, instruction->data & 0xFFFF});
-        MV_TRACE("Aimed electron gun at %u, %u\n", instruction->data >> 16, instruction->data & 0xFFFF)
+        MV_TRACE("Aimed electron gun at %u, %u\n", instruction->data >> 16, instruction->data & 0xFFFF);
         break;
     case MV_INSTRUCTION_POWER_OFF:
         mv_power_off_electron_gun(electron_gun);

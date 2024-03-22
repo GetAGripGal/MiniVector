@@ -10,25 +10,21 @@ configurations { "Debug", "Release" }
 location "build"
 
 -- GLFW project
-project "glfw"
+project "glfw3"
 
 language "C"
 targetdir "build/bin/%{cfg.buildcfg}"
 
+filter "not options:win96"
+kind "SharedLib"
 files {
     "vendor/glfw/include/GLFW/**.h",
     "vendor/glfw/src/**.c",
 }
-
 -- Include directories
 includedirs {
     "vendor/glfw/include",
 }
-
-
--- Windows 96
-filter "not options:win96"
-kind "SharedLib"
 
 filter "options:win96"
 kind "StaticLib"
@@ -55,7 +51,8 @@ defines { "_GLFW_WIN32" }
 
 links {
     "opengl32",
-    "gdi32"
+    "gdi32",
+
 }
 
 filter "configurations:Debug"
@@ -68,16 +65,16 @@ optimize "On"
 
 
 -- Win96 sdk project
+filter "options:win96"
 project "win96"
 kind "StaticLib"
 language "C"
 targetdir "build/bin/%{cfg.buildcfg}"
 
+filter "options:win96"
 includedirs {
     "vendor/win96sdk/sdklib/include",
 }
-
-filter "options:win96"
 files {
     "vendor/win96sdk/sdklib/include/win96/**.h",
     "vendor/win96sdk/sdklib/src/**.c",
@@ -115,30 +112,29 @@ includedirs {
 
     "vendor/win96sdk/sdklib/include",
 }
+libdirs {
+    "build/bin/%{cfg.buildcfg}",
+}
 
 
 -- Windows 96
 filter { "options:win96" }
 defines { "_WIN96" }
 buildoptions { "-pthread" }
-linkoptions { "-s USE_GLFW=3 -USE_PTHREADS=1" }
+linkoptions { " -s ASYNCIFY -s ASYNCIFY_IMPORTS=[\"emscripten_asm_const_int\"] -s USE_GLFW=3 -s USE_WEBGL2=1 -s FULL_ES3=1 -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE_STRICT=0 -s ALLOW_TABLE_GROWTH -s ASSERTIONS=1" }
 links { "win96" }
 
 -- Platform specific
 filter { "system:windows", "not options:win96" }
 links {
-    "glfw",
+    "glfw3",
     "opengl32",
     "gdi32",
-    "pthread",
-}
-linkoptions {
-    "-static-libgcc -static-libstdc++ -Wl,-Bstatic -lstdc++ -lpthread -Wl,-Bdynamic"
 }
 
 filter { "system:linux", "not options:win96" }
 links {
-    "glfw",
+    "glfw3",
     "dl",
     "m"
 }
@@ -149,4 +145,4 @@ symbols "On"
 
 filter "configurations:Release"
 defines { "NDEBUG" }
-optimize "On"
+optimize "Speed"
