@@ -23,7 +23,7 @@
  */
 mv_pipe *mv_create_pipe(char *pipe_path, uint64_t instructions_per_frame)
 {
-    MV_INFO("Setting up pipe");
+    MV_INFO("Setting up pipe\n");
     mv_pipe *pipe = malloc(sizeof(mv_pipe));
     pipe->pipe_path = pipe_path;
     pipe->index = 0;
@@ -178,9 +178,7 @@ void mv_poll_pipe(mv_pipe *pipe)
             }
 
 #ifdef __unix__
-            while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
-            {
-            }
+            pthread_mutex_lock(&pipe->instruction_buffer_lock);
 #elif defined(_WIN32)
             WaitForSingleObject(pipe->instruction_buffer_lock, INFINITE);
 #endif
@@ -250,9 +248,7 @@ mv_instruction_t *mv_read_instruction_from_pipe(mv_pipe *pipe)
 
 // Wait for the lock
 #ifdef __unix__
-    while (pthread_mutex_lock(&pipe->instruction_buffer_lock) != 0)
-    {
-    }
+    pthread_mutex_lock(&pipe->instruction_buffer_lock);
 #elif defined(_WIN32)
     WaitForSingleObject(pipe->instruction_buffer_lock, INFINITE);
 #endif

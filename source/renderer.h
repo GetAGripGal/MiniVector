@@ -171,14 +171,34 @@
     "out vec4 FragColor;\n" MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLOOM                                        \
         MV_ELECTRON_RENDERER_FRAGMENT_SHADER_BLUR                                                             \
     "\n"                                                                                                      \
+    "vec4 sample_letterboxed(sampler2D texture_sampler, vec2 texture_coords) {\n"                             \
+    "   ivec2 texture_resolution = textureSize(frame, 1);\n"                                                  \
+    "   float texture_aspect = float(texture_resolution.x) / float(texture_resolution.y);\n"                  \
+    "   float screen_aspect = resolution.x / resolution.y;\n"                                                 \
+    "   float letterbox_width = 0.0;\n"                                                                       \
+    "   float letterbox_height = 0.0;\n"                                                                      \
+    "\n"                                                                                                      \
+    "   if (texture_aspect < screen_aspect) {\n"                                                              \
+    "       letterbox_height = (1.0 - texture_aspect / screen_aspect) / 2.0;\n"                               \
+    "   } else {\n"                                                                                           \
+    "       letterbox_width = (1.0 - screen_aspect / texture_aspect) / 2.0;\n"                                \
+    "   }\n"                                                                                                  \
+    "\n"                                                                                                      \
+    "   if (texture_coords.x < letterbox_width || texture_coords.y > 1.0 - letterbox_width || \n"             \
+    "       texture_coords.y < letterbox_height || texture_coords.y > 1.0 - letterbox_height) {\n"            \
+    "       return vec4(0.0, 0.0, 0.0, 1.0);\n"                                                               \
+    "   }\n"                                                                                                  \
+    "   return texture(texture_sampler, texture_coords);\n"                                                   \
+    "}\n"                                                                                                     \
+    "\n"                                                                                                      \
     "vec4 smooth_pixel(sampler2D textureSampler, vec2 texCoords, vec2 textureSize) {\n"                       \
     "    vec2 texelSize = 1.0 / textureSize;\n"                                                               \
     "\n"                                                                                                      \
     "    vec4 color = vec4(0.0);\n"                                                                           \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n"            \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"             \
-    "    color += texture(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"             \
-    "    color += texture(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"              \
+    "    color += sample_letterboxed(textureSampler, texCoords + vec2(-texelSize.x, -texelSize.y)) * 0.25;\n" \
+    "    color += sample_letterboxed(textureSampler, texCoords + vec2(texelSize.x, -texelSize.y)) * 0.25;\n"  \
+    "    color += sample_letterboxed(textureSampler, texCoords + vec2(-texelSize.x, texelSize.y)) * 0.25;\n"  \
+    "    color += sample_letterboxed(textureSampler, texCoords + vec2(texelSize.x, texelSize.y)) * 0.25;\n"   \
     "\n"                                                                                                      \
     "    return color;\n"                                                                                     \
     "}\n"                                                                                                     \
@@ -210,7 +230,7 @@
     "   //     FragColor = vec4(1.0, 1.0, 1.0, 1.0);\n"                                                       \
     "   //     return;\n"                                                                                     \
     "   // }\n"                                                                                               \
-    "   vec4 color = smooth_pixel(frame, screen_uv, resolution);\n"                                           \
+    "   vec4 color = smooth_pixel(frame, crt_uv, vec2(textureSize(frame, 1)));\n"                             \
     "   color = crt_vignette(crt_uv) * color;\n"                                                              \
     "   color = blur(crt_uv, 3);\n"                                                                           \
     "   color = clamp(color * 3.0, 0.0, 1.0);\n"                                                              \

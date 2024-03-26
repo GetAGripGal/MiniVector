@@ -101,12 +101,7 @@ void mv_destroy_window(mv_window *window)
  */
 void mv_present_window(mv_window *window)
 {
-
-#ifndef _WIN96
     glViewport(0, 0, window->reported_size.width, window->reported_size.height);
-#else
-    // gui_alertbox("INFO", "POLLED", "OK", 0);
-#endif
     glfwSwapBuffers(window->glfw_ptr);
 
     glfwPollEvents();
@@ -141,6 +136,8 @@ static void callback_resize(GLFWwindow *window, int32_t width, int32_t height)
     mv_state *state = (mv_state *)glfwGetWindowUserPointer(window);
     state->window->reported_size.width = width;
     state->window->reported_size.height = height;
+
+    MV_TRACE("Resizing window | { width: %d, height: %d }\n", width, height);
 }
 
 /**

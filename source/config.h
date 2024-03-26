@@ -18,7 +18,7 @@
 
 #define DEFAULT_LINE_WIDTH 2
 #define DEFAULT_RADIUS 1
-#define DEFAULT_DIM_FACTOR 0.05
+#define DEFAULT_DIM_FACTOR 0.1
 
 #ifdef _WIN32
 #define DEFAULT_PIPE "\\\\.\\pipe\\mv_pipe"

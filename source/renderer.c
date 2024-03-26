@@ -138,7 +138,7 @@ void mv_render_electron_gun(mv_electron_renderer *renderer, mv_electron_gun *ele
 
     // Draw the frame
     mv_use_shader(renderer->shader);
-    mv_set_uniform_vec2(renderer->shader, "resolution", window->reported_size.width, window->reported_size.height);
+    mv_set_uniform_vec2(renderer->shader, "resolution", (float)window->reported_size.width, (float)window->reported_size.height);
     glBindTexture(GL_TEXTURE_2D, renderer->frame_texture[renderer->current_texture]);
     glBindVertexArray(renderer->vao);
     glDrawArrays(GL_TRIANGLES, 0, 3);
