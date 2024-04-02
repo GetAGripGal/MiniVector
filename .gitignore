@@ -1,6 +1,2 @@
-.vscode
-build/
-run.sh
-dump.mv
-test/write.py
-server.py
+/target
+/pkg
