@@ -161,6 +161,10 @@ fn dim_srgb(color: vec3<f32>, amount: f32) -> vec3<f32> {
 fn main(
     @builtin(global_invocation_id) gid: vec3<u32>
 ) {
+    if points_amount <= 1u {
+        return;
+    }
+
     let dimensions = textureDimensions(t_diffuse);
     let coords = vec2<i32>(gid.xy);
     let uv = vec2<f32>(coords) / vec2<f32>(dimensions);
@@ -168,8 +172,10 @@ fn main(
     let dim = 1.0 - parameters.dim_factor;
 
     var color = textureLoad(t_diffuse, coords, 0);
-    color = vec4<f32>(dim_srgb(color.rgb, dim), color.a);
-    color.a = color.a * dim;
+    if color.a > 0.0 {
+        color = vec4<f32>(dim_srgb(color.rgb, dim), color.a);
+        color.a = color.a * dim;
+    }
 
     if should_draw(vec2<f32>(coords), parameters.radius) {
         color = vec4<f32>(display_colors.secondary, 1.0);

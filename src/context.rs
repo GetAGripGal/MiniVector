@@ -1,4 +1,13 @@
-use crate::{gfx::electron::ElectronParams, processor::InstructionProcessor, result::Result};
+use std::sync::{Arc, Mutex};
+
+use crate::{
+    gfx::electron::ElectronParams,
+    instruction,
+    processor::InstructionProcessor,
+    readers::{pipe::NamedPipeReader, InstructionReader},
+    result::Result,
+};
+use instruction::Instruction;
 use log::LevelFilter;
 
 #[cfg(target_arch = "wasm32")]
@@ -28,7 +37,13 @@ pub struct Context {
     electron_renderer: ElectronRenderer,
     window: Window,
 
+    reader: Option<Arc<Mutex<InstructionReader>>>,
     processor: InstructionProcessor,
+
+    reading_thread: Option<std::thread::JoinHandle<()>>,
+    reading_thread_handle: Arc<Mutex<bool>>,
+
+    instruction_buffer: Arc<Mutex<Vec<instruction::Instruction>>>,
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -65,6 +80,19 @@ impl Context {
 
         let processor = InstructionProcessor::new(config.instruction_per_frame as usize);
 
+        // Determine the reader
+        let reader = {
+            if let Some(pipe) = &config.pipe {
+                InstructionReader::NamedPipe(NamedPipeReader::new(
+                    pipe,
+                    config.instruction_per_frame as usize,
+                )?)
+            } else {
+                InstructionReader::None
+            }
+        };
+        let reader = Some(Arc::new(Mutex::new(reader)));
+
         Ok(Self {
             config,
             event_loop: Some(event_loop),
@@ -74,6 +102,10 @@ impl Context {
             frame_buffer,
             electron_renderer,
             processor,
+            reader,
+            reading_thread: None,
+            reading_thread_handle: Arc::new(Mutex::new(true)),
+            instruction_buffer: Arc::new(Mutex::new(Vec::new())),
         })
     }
 
@@ -82,13 +114,62 @@ impl Context {
     pub async fn run(mut self) -> Result<()> {
         log::info!("Running minivector");
 
+        // Start the reader thread
+        if let Some(_) = &self.reader {
+            self.spawn_reader_thread();
+        }
         // Take the event loop from the context
         let event_loop = self.event_loop.take().unwrap();
         event_loop
             .run(|event, window_target| self.handle_winit_event(&event, window_target))
             .map_err(|e| anyhow::anyhow!("Error running event loop: {:?}", e))?;
 
+        self.reading_thread.take().unwrap().join().unwrap();
         Ok(())
+    }
+
+    /// Spawn the reading thread
+    fn spawn_reader_thread(&mut self) {
+        let handle = self.reading_thread_handle.clone();
+        let reader = self.reader.as_ref().unwrap().clone();
+        let instruction_buffer = self.instruction_buffer.clone();
+        let mut thread_instruction_buffer: Vec<Instruction> = Vec::new();
+
+        // Spawn the reading thread
+        self.reading_thread = Some(std::thread::spawn(move || loop {
+            // Check if the handle is set to false. If so, exit the thread
+            if let Ok(handle) = handle.try_lock() {
+                if !*handle {
+                    break;
+                }
+            }
+
+            // Read instructions and push them to the buffer
+            if let Ok(mut reader) = reader.try_lock() {
+                // Read instructions from the reader
+                if let InstructionReader::NamedPipe(reader) = &mut *reader {
+                    let buffer = reader.read_instructions().unwrap();
+                    if buffer.is_empty() {
+                        continue;
+                    }
+                    match Instruction::from_bytes_slice(&buffer) {
+                        Ok(instructions) => {
+                            thread_instruction_buffer.extend(&instructions);
+                        }
+                        Err(e) => log::error!("Failed to parse instructions: {:?}", e),
+                    }
+                }
+            }
+
+            // Push the instructions to the instruction buffer
+            if thread_instruction_buffer.is_empty() {
+                continue;
+            }
+            if let Ok(mut instruction_buffer) = instruction_buffer.try_lock() {
+                instruction_buffer.extend(&thread_instruction_buffer);
+                thread_instruction_buffer.clear();
+            }
+        }));
     }
 
     /// Handle a winit event
@@ -116,16 +197,21 @@ impl Context {
                 self.frame_timer.start();
 
                 // Process the instructions
+                {
+                    let mut instruction_buffer = self.instruction_buffer.lock().unwrap();
+                    self.processor.push_instructions(&instruction_buffer);
+                    instruction_buffer.clear();
+                }
                 self.processor.process();
 
                 // Update the electron renderer
                 self.electron_renderer
                     .set_points(&self.wgpu_state, self.processor.points())
                     .unwrap();
-
                 // Process the electron renderer
                 self.electron_renderer
                     .process(&mut self.wgpu_state, &self.frame_buffer);
+
                 self.frame_buffer
                     .render(&mut self.wgpu_state, self.config.primary)
                     .unwrap();
@@ -145,7 +231,12 @@ impl Context {
 
                 self.window.request_redraw();
             }
-            WindowEvent::CloseRequested => window_target.exit(),
+            WindowEvent::CloseRequested => {
+                log::info!("Exiting minivector");
+                *self.reading_thread_handle.lock().unwrap() = false;
+                log::info!("Reading thread exited");
+                window_target.exit();
+            }
             _ => (),
         }
     }

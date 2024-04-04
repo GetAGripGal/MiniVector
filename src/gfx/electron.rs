@@ -130,11 +130,13 @@ impl ElectronRenderer {
         wgpu_state
             .queue
             .write_buffer(&self.point_buffer, 0, &buffer.into_inner());
+        let amount = points.len() as u32;
         wgpu_state.queue.write_buffer(
             &self.point_amount_buffer,
             0,
-            bytemuck::cast_slice(&[points.len() as u32]),
+            bytemuck::cast_slice(&[amount]),
         );
+
         Ok(())
     }
 

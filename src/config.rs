@@ -10,40 +10,15 @@ const DEFAULT_RESOLUTION_WIDTH: u32 = 1920;
 const DEFAULT_RESOLUTION_HEIGHT: u32 = 1080;
 
 const DEFAULT_INSTRUCTION_PER_FRAME: u32 = 800;
-const DEFAULT_FRAME_RATE: u32 = 60;
+const DEFAULT_FRAME_RATE: u32 = 30;
 
 const DEFAULT_PRIMARY_COLOR: Color = Color::new(40, 40, 40);
 const DEFAULT_SECONDARY_COLOR: Color = Color::new(51, 255, 100);
 
-const DEFAULT_RADIUS: f32 = 1.0;
+const DEFAULT_RADIUS: f32 = 2.0;
 const DEFAULT_DIM_FACTOR: f32 = 0.3;
 
 const MINIVECTOR_ICON: &'static [u8] = include_bytes!("../assets/icon.png");
-
-#[cfg(target_os = "windows")]
-const DEFAULT_PIPE: &'static str = "\\\\.\\pipe\\mv_pipe";
-#[cfg(not(target_os = "windows"))]
-const DEFAULT_PIPE: &'static str = "/tmp/mv_pipe";
-
-/// The usage text
-pub const USAGE_TEXT: &str = r"
-usage: minivector [options]
-    options:
-        window:
-          -w,  --window <width> <height>     Set the window siz
-          -f   --fullscreen                  Set the window to fullscree
-        display
-          -r,  --resolution <width> <height> Set the resolutio
-          -p,  --primary <color_hex>         Set the primary colo
-          -s,  --secondary <color_hex>       Set the secondary colo
-        gun
-          -rg, --radius <radius>             Set the radius of the electron gun
-          -df, --dim-factor <factor>         Set the dim factor per frame
-        executor:
-          -i,  --pipe <pipe>                 Set the pipe to read the instructions
-          -e,  --instruction-per-frame <n>   Set the number of instructions per frame
-          -fr, --frame-rate <n>              Set the frame rate
-";
 
 /// The resolution of the window
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -81,7 +56,7 @@ pub struct Config {
     pub secondary: Color,
     pub radius: f32,
     pub dim_factor: f32,
-    pub pipe: String,
+    pub pipe: Option<String>,
     pub instruction_per_frame: u32,
     pub frame_rate: u32,
     pub icon: Icon,
@@ -99,7 +74,7 @@ pub struct Config {
     pub(crate) secondary: Color,
     pub(crate) radius: f32,
     pub(crate) dim_factor: f32,
-    pub(crate) pipe: String,
+    // pub(crate) pipe: String,
     pub(crate) instruction_per_frame: u32,
     pub(crate) frame_rate: u32,
 }
@@ -120,7 +95,7 @@ impl Default for Config {
             secondary: DEFAULT_SECONDARY_COLOR,
             radius: DEFAULT_RADIUS,
             dim_factor: DEFAULT_DIM_FACTOR,
-            pipe: DEFAULT_PIPE.to_string(),
+            pipe: None,
             instruction_per_frame: DEFAULT_INSTRUCTION_PER_FRAME,
             frame_rate: DEFAULT_FRAME_RATE,
             #[cfg(not(target_arch = "wasm32"))]

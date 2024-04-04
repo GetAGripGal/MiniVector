@@ -54,8 +54,12 @@ impl Instruction {
             }
 
             let mut bytes = [0; INSTRUCTION_SIZE];
+            // Log chunk as hex
             bytes.copy_from_slice(chunk);
-            instructions.push(Instruction::from_bytes(bytes)?);
+            match Instruction::from_bytes(bytes) {
+                Ok(instruction) => instructions.push(instruction),
+                Err(e) => log::warn!("Failed to parse instruction: {:?}", e),
+            }
         }
         Ok(instructions)
     }
@@ -70,7 +74,7 @@ impl TryFrom<u8> for InstructionKind {
             1 => Ok(Self::MoveTo),
             2 => Ok(Self::PowerOff),
             3 => Ok(Self::PowerOn),
-            _ => Err(anyhow::anyhow!("Invalid instruction kind")),
+            _ => Err(anyhow::anyhow!("Invalid instruction kind: {}", value)),
         }
     }
 }

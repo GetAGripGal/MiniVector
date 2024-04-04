@@ -25,7 +25,7 @@ impl InstructionProcessor {
             instruction_buffer: VecDeque::new(),
             points: VecDeque::with_capacity(instructions_per_frame),
             instructions_per_frame,
-            power: false,
+            power: true,
         }
     }
 
@@ -44,12 +44,10 @@ impl InstructionProcessor {
 
             let instruction = self.instruction_buffer[0].clone();
             self.process_instruction(instruction);
-
             // If the point buffer is bigger than the instruction per frame, remove the first point and shift the vector
             if self.points.len() > self.instructions_per_frame {
                 self.points.pop_front();
             }
-
             // Remove the first instruction
             self.instruction_buffer.pop_front();
         }
@@ -61,7 +59,8 @@ impl InstructionProcessor {
     }
 
     /// Process a single instruction and return the point the gun has moved to.
-    fn process_instruction(&mut self, instruction: Instruction) {
+    /// Return true if a point was processed, false otherwise.
+    fn process_instruction(&mut self, instruction: Instruction) -> bool {
         match instruction.kind {
             InstructionKind::Clear => {
                 self.points.clear();
@@ -70,6 +69,7 @@ impl InstructionProcessor {
                 let mut point = Point::from(instruction.data);
                 point.power = if self.power { 1 } else { 0 };
                 self.points.push_back(point);
+                return true;
             }
             InstructionKind::PowerOn => {
                 self.power = true;
@@ -78,5 +78,6 @@ impl InstructionProcessor {
                 self.power = false;
             }
         }
+        false
     }
 }

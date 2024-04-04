@@ -1,9 +1,12 @@
 use minivector::{
-    color::Color,
-    config::{Config, Resolution},
-    context::Context,
-    result::Result,
+    config::Resolution,
+    prelude::{Color, Config, Context, Result},
 };
+
+#[cfg(target_os = "windows")]
+const DEFAULT_PIPE: &'static str = "\\\\.\\pipe\\mv_pipe";
+#[cfg(not(target_os = "windows"))]
+const DEFAULT_PIPE: &'static str = "/tmp/mv_pipe";
 
 /// The usage text
 const USAGE_TEXT: &str = r"
@@ -24,9 +27,6 @@ usage: minivector [options]
           -e,  --instruction-per-frame <n>   Set the number of instructions per frame
           -fr, --frame-rate <n>              Set the frame rate
 ";
-
-/// The instructions to render
-const INSTRUCTIONS: &'static [u8] = include_bytes!("../instructions.mv");
 
 /// The error type for invalid arguments
 #[derive(Debug)]
@@ -54,14 +54,17 @@ fn main() -> Result<()> {
 
 /// Run minivector
 async fn run(config: Config) -> Result<()> {
-    let mut context = Context::new(config).await?;
-    context.push_instructions(INSTRUCTIONS);
+    let context = Context::new(config).await?;
+    // context.push_instructions(INSTRUCTIONS);
     context.run().await
 }
 
 /// Parse the command line arguments
 pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgumentError> {
-    let mut config = Config::default();
+    let mut config = Config {
+        pipe: Some(DEFAULT_PIPE.to_string()),
+        ..Default::default()
+    };
     let mut i = 1;
 
     while i < args.len() {
@@ -138,7 +141,7 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
             }
             "-i" | "--pipe" => {
                 let value = args.get(i + 1).ok_or(InvalidArgumentError::InvalidPipe)?;
-                config.pipe = value.to_string();
+                config.pipe = Some(value.to_string());
                 i += 2;
             }
             "-e" | "--instruction-per-frame" => {
