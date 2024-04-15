@@ -50,7 +50,7 @@ impl FrameTimer {
         (1.0 / self.delta_seconds()).round() as u32
     }
 
-    /// Calculate the delay
+    /// Calculate the delay between frames
     pub fn delay(&self, target_fps: u32) -> instant::Duration {
         let target_frame_time = instant::Duration::from_secs_f64(1.0 / target_fps as f64);
         if self.delta < target_frame_time {

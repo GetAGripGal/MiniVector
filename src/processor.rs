@@ -36,7 +36,13 @@ impl InstructionProcessor {
 
     /// Process a set of instructions
     pub fn process(&mut self) {
-        for _ in 0..self.instructions_per_frame {
+        let n_to_process = if self.instructions_per_frame > 0 {
+            self.instructions_per_frame
+        } else {
+            self.instruction_buffer.len()
+        };
+        self.points.clear();
+        for _ in 0..n_to_process {
             // If the instruction buffer is empty, break
             if self.instruction_buffer.is_empty() {
                 break;
@@ -44,10 +50,6 @@ impl InstructionProcessor {
 
             let instruction = self.instruction_buffer[0].clone();
             self.process_instruction(instruction);
-            // If the point buffer is bigger than the instruction per frame, remove the first point and shift the vector
-            if self.points.len() > self.instructions_per_frame {
-                self.points.pop_front();
-            }
             // Remove the first instruction
             self.instruction_buffer.pop_front();
         }

@@ -1269,6 +1269,7 @@ dependencies = [
  "env_logger",
  "futures",
  "glam",
+ "hashbrown",
  "image",
  "instant",
  "log",

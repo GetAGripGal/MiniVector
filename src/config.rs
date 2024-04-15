@@ -9,7 +9,7 @@ const DEFAILT_WINDOW_HEIGHT: u32 = 720;
 const DEFAULT_RESOLUTION_WIDTH: u32 = 1920;
 const DEFAULT_RESOLUTION_HEIGHT: u32 = 1080;
 
-const DEFAULT_INSTRUCTION_PER_FRAME: u32 = 800;
+const DEFAULT_INSTRUCTION_PER_FRAME: u32 = 0;
 const DEFAULT_FRAME_RATE: u32 = 30;
 
 const DEFAULT_PRIMARY_COLOR: Color = Color::new(40, 40, 40);
@@ -28,11 +28,17 @@ pub struct Resolution {
     pub height: u32,
 }
 
+impl Into<(u32, u32)> for Resolution {
+    fn into(self) -> (u32, u32) {
+        (self.width, self.height)
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl Resolution {
     /// Create a new resolution
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-    pub fn new(width: u32, height: u32) -> Self {
+    pub const fn new(width: u32, height: u32) -> Self {
         Self { width, height }
     }
 }
@@ -49,14 +55,16 @@ pub struct Icon {
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug)]
 pub struct Config {
-    pub window: Resolution,
     pub fullscreen: bool,
+    pub window: Resolution,
     pub resolution: Resolution,
+    pub screen_size: glam::Vec2,
     pub primary: Color,
     pub secondary: Color,
     pub radius: f32,
     pub dim_factor: f32,
-    pub pipe: Option<String>,
+    pub instruction_pipe: Option<String>,
+    pub event_pipe: Option<String>,
     pub instruction_per_frame: u32,
     pub frame_rate: u32,
     pub icon: Icon,
@@ -74,7 +82,6 @@ pub struct Config {
     pub(crate) secondary: Color,
     pub(crate) radius: f32,
     pub(crate) dim_factor: f32,
-    // pub(crate) pipe: String,
     pub(crate) instruction_per_frame: u32,
     pub(crate) frame_rate: u32,
 }
@@ -82,22 +89,24 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            window: Resolution {
-                width: DEFAULT_WINDOW_WIDTH,
-                height: DEFAILT_WINDOW_HEIGHT,
-            },
             fullscreen: false,
-            resolution: Resolution {
-                width: DEFAULT_RESOLUTION_WIDTH,
-                height: DEFAULT_RESOLUTION_HEIGHT,
-            },
+            window: Resolution::new(DEFAULT_WINDOW_WIDTH, DEFAILT_WINDOW_HEIGHT),
+            resolution: Resolution::new(DEFAULT_RESOLUTION_WIDTH, DEFAULT_RESOLUTION_HEIGHT),
+            screen_size: glam::Vec2::new(
+                DEFAULT_RESOLUTION_WIDTH as f32,
+                DEFAULT_RESOLUTION_HEIGHT as f32,
+            ),
             primary: DEFAULT_PRIMARY_COLOR,
             secondary: DEFAULT_SECONDARY_COLOR,
             radius: DEFAULT_RADIUS,
             dim_factor: DEFAULT_DIM_FACTOR,
-            pipe: None,
             instruction_per_frame: DEFAULT_INSTRUCTION_PER_FRAME,
             frame_rate: DEFAULT_FRAME_RATE,
+
+            #[cfg(not(target_arch = "wasm32"))]
+            instruction_pipe: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            event_pipe: None,
             #[cfg(not(target_arch = "wasm32"))]
             icon: load_icon().unwrap(),
         }

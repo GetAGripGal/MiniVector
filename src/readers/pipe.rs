@@ -37,7 +37,7 @@ impl NamedPipeReader {
 
         // Open the pipe non-blocking
         let file = nix::fcntl::open(path, OFlag::O_RDONLY | OFlag::O_NONBLOCK, Mode::empty())
-            .map_err(|e| anyhow::anyhow!("Failed to open named pipe: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to open named instruction pipe: {}", e))?;
 
         Ok(Self {
             file,
@@ -67,11 +67,16 @@ impl NamedPipeReader {
 
     /// Read instructions from the named pipe
     #[cfg(unix)]
-    pub fn read_instructions(&mut self) -> Result<Vec<u8>> {
+    pub fn read(&mut self) -> Result<Vec<u8>> {
         // Read from the named pipe
         let mut bytes_read = 0;
         let mut buffer = [0; 1];
-        let mut bytes = Vec::with_capacity(self.instructions_per_frame * INSTRUCTION_SIZE);
+        let capacity = if self.instructions_per_frame > 0 {
+            self.instructions_per_frame * INSTRUCTION_SIZE
+        } else {
+            std::mem::size_of::<u8>() * 1024
+        };
+        let mut bytes = Vec::with_capacity(capacity);
         loop {
             match nix::unistd::read(self.file, &mut buffer) {
                 Ok(n) => {
@@ -80,7 +85,10 @@ impl NamedPipeReader {
                     }
                     bytes.push(buffer[0]);
                     bytes_read += n;
-                    if bytes_read >= self.instructions_per_frame * INSTRUCTION_SIZE {
+                    // Break if we have read the required number of instructions
+                    if self.instructions_per_frame > 0
+                        && bytes_read >= self.instructions_per_frame * INSTRUCTION_SIZE
+                    {
                         break;
                     }
                 }
@@ -103,9 +111,6 @@ impl NamedPipeReader {
 
         // Split the buffer at the split point
         let (bytes, left_over) = bytes.split_at(split_point);
-        if left_over_amount > 0 {
-            log::info!("Left over: {}", left_over_amount);
-        }
 
         // Store the left over bytes
         self.left_over.clear();
@@ -115,7 +120,7 @@ impl NamedPipeReader {
     }
 
     #[cfg(windows)]
-    pub fn read_instructions(&mut self) -> Result<Vec<u8>> {
+    pub fn read(&mut self) -> Result<Vec<u8>> {
         use std::io::Error;
         use std::os::windows::io::AsRawHandle;
         use winapi::um::fileapi::ReadFile;
@@ -178,7 +183,7 @@ pub fn create_pipe(pipe: &str, _: usize) -> Result<()> {
 
     let path = std::path::Path::new(pipe);
     if !path.exists() {
-        nix::unistd::mkfifo(path, stat::Mode::S_IRWXU)
+        nix::unistd::mkfifo(path, stat::Mode::empty())
             .map_err(|e| anyhow::anyhow!("Failed to create instruction pipe{}", e))?;
     }
 
@@ -216,6 +221,11 @@ pub fn create_pipe(pipe: &str, instructions_per_frame: usize) -> Result<winapi::
     if pipe == winapi::um::handleapi::INVALID_HANDLE_VALUE {
         return Err(anyhow::anyhow!("Failed to create instruction pipe").into());
     }
+
+    log::info!(
+        "Named pipe created: {}",
+        path_slice.iter().collect::<String>()
+    );
 
     Ok(pipe)
 }

@@ -1,6 +1,11 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
+    events::{
+        manager::EventManager,
+        writer::{pipe::NamedPipeWriter, EventWriter},
+        Event,
+    },
     gfx::electron::ElectronParams,
     instruction,
     processor::InstructionProcessor,
@@ -14,8 +19,9 @@ use log::LevelFilter;
 use wasm_bindgen::prelude::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, WindowEvent},
+    event::WindowEvent,
     event_loop::{EventLoop, EventLoopWindowTarget},
+    platform::scancode::PhysicalKeyExtScancode,
     window::{Fullscreen, Icon, Window, WindowBuilder},
 };
 
@@ -39,6 +45,9 @@ pub struct Context {
 
     reader: Option<Arc<Mutex<InstructionReader>>>,
     processor: InstructionProcessor,
+
+    event_manager: EventManager,
+    event_writer: Option<EventWriter>,
 
     reading_thread: Option<std::thread::JoinHandle<()>>,
     reading_thread_handle: Arc<Mutex<bool>>,
@@ -70,11 +79,13 @@ impl Context {
         let mut electron_renderer = ElectronRenderer::new(
             &wgpu_state,
             &frame_buffer,
-            config.instruction_per_frame as usize,
+            (config.instruction_per_frame + 1) as usize,
             &ElectronParams {
                 radius: config.radius,
                 dim_factor: config.dim_factor,
+                screen_size: (config.screen_size.x, config.screen_size.y).into(),
             },
+            config.resolution.into(),
         )?;
         electron_renderer.set_display_colors(&wgpu_state, config.primary, config.secondary)?;
 
@@ -82,16 +93,29 @@ impl Context {
 
         // Determine the reader
         let reader = {
-            if let Some(pipe) = &config.pipe {
-                InstructionReader::NamedPipe(NamedPipeReader::new(
+            if let Some(pipe) = &config.instruction_pipe {
+                let result = InstructionReader::NamedPipe(NamedPipeReader::new(
                     pipe,
                     config.instruction_per_frame as usize,
-                )?)
+                )?);
+                Some(Arc::new(Mutex::new(result)))
             } else {
-                InstructionReader::None
+                None
             }
         };
-        let reader = Some(Arc::new(Mutex::new(reader)));
+
+        // Create the event manager
+        let event_manager = EventManager::new();
+
+        // Determine the event writer
+        let event_writer = {
+            if let Some(pipe) = &config.event_pipe {
+                let result = EventWriter::NamedPipe(NamedPipeWriter::new(&pipe)?);
+                Some(result)
+            } else {
+                None
+            }
+        };
 
         Ok(Self {
             config,
@@ -106,6 +130,8 @@ impl Context {
             reading_thread: None,
             reading_thread_handle: Arc::new(Mutex::new(true)),
             instruction_buffer: Arc::new(Mutex::new(Vec::new())),
+            event_manager,
+            event_writer,
         })
     }
 
@@ -147,17 +173,15 @@ impl Context {
             // Read instructions and push them to the buffer
             if let Ok(mut reader) = reader.try_lock() {
                 // Read instructions from the reader
-                if let InstructionReader::NamedPipe(reader) = &mut *reader {
-                    let buffer = reader.read_instructions().unwrap();
-                    if buffer.is_empty() {
-                        continue;
+                let buffer = reader.read().unwrap();
+                if buffer.is_empty() {
+                    continue;
+                }
+                match Instruction::from_bytes_slice(&buffer) {
+                    Ok(instructions) => {
+                        thread_instruction_buffer.extend(&instructions);
                     }
-                    match Instruction::from_bytes_slice(&buffer) {
-                        Ok(instructions) => {
-                            thread_instruction_buffer.extend(&instructions);
-                        }
-                        Err(e) => log::error!("Failed to parse instructions: {:?}", e),
-                    }
+                    Err(e) => log::error!("Failed to parse instructions: {:?}", e),
                 }
             }
 
@@ -173,12 +197,32 @@ impl Context {
     }
 
     /// Handle a winit event
-    fn handle_winit_event(&mut self, event: &Event<()>, window_target: &EventLoopWindowTarget<()>) {
+    fn handle_winit_event(
+        &mut self,
+        event: &winit::event::Event<()>,
+        window_target: &EventLoopWindowTarget<()>,
+    ) {
         match event {
-            Event::WindowEvent { event, window_id } if *window_id == self.window.id() => {
+            winit::event::Event::WindowEvent { event, window_id }
+                if *window_id == self.window.id() =>
+            {
                 self.handle_window_event(event, window_target);
             }
-            Event::AboutToWait { .. } => {}
+            winit::event::Event::AboutToWait { .. } => {
+                // Dispatch the events
+                let queue = self.event_manager.queue();
+                let handlers = self.event_manager.handlers();
+                for event in queue {
+                    if let Some(handler) = handlers.get(&event.kind) {
+                        handler(self, &event);
+                    }
+
+                    if let Some(event_writer) = &mut self.event_writer {
+                        event_writer.write(&[event.clone()]).ok();
+                    }
+                }
+                self.event_manager.clear();
+            }
             _ => (),
         }
     }
@@ -192,6 +236,8 @@ impl Context {
         match event {
             WindowEvent::Resized(size) => {
                 self.wgpu_state.resize((*size).into());
+                self.frame_buffer
+                    .update_aspect(&self.wgpu_state, size.width as f32 / size.height as f32);
             }
             WindowEvent::RedrawRequested => {
                 self.frame_timer.start();
@@ -217,9 +263,11 @@ impl Context {
                     .unwrap();
 
                 // Limit the frame rate
-                self.frame_timer.update();
-                let delay = self.frame_timer.delay(self.config.frame_rate);
-                std::thread::sleep(delay);
+                if self.config.frame_rate > 0 {
+                    self.frame_timer.update();
+                    let delay = self.frame_timer.delay(self.config.frame_rate);
+                    std::thread::sleep(delay);
+                }
 
                 self.frame_timer.update();
                 // Update window title to reflect timing
@@ -230,6 +278,33 @@ impl Context {
                 ));
 
                 self.window.request_redraw();
+                self.event_manager.dispatch(Event::frame_finished());
+            }
+            WindowEvent::MouseInput { state, button, .. } => {
+                let event = match state {
+                    winit::event::ElementState::Pressed => Event::mouse_pressed((*button).into()),
+                    winit::event::ElementState::Released => Event::mouse_released((*button).into()),
+                };
+                self.event_manager.dispatch(event);
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                let scancode = event.physical_key.to_scancode();
+                if let Some(code) = scancode {
+                    // If f11 is pressed, toggle fullscreen
+                    if code == 87 && event.state == winit::event::ElementState::Pressed {
+                        if self.window.fullscreen().is_some() {
+                            self.window.set_fullscreen(None);
+                        } else {
+                            self.window
+                                .set_fullscreen(Some(Fullscreen::Borderless(None)));
+                        }
+                    }
+                    let event = match event.state {
+                        winit::event::ElementState::Pressed => Event::key_pressed(code.into()),
+                        winit::event::ElementState::Released => Event::key_released(code.into()),
+                    };
+                    self.event_manager.dispatch(event);
+                }
             }
             WindowEvent::CloseRequested => {
                 log::info!("Exiting minivector");

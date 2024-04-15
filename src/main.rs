@@ -13,19 +13,23 @@ const USAGE_TEXT: &str = r"
 usage: minivector [options]
     options:
         window:
-          -w,  --window <width> <height>     Set the window siz
-          -f   --fullscreen                  Set the window to fullscree
+            -w,  --window <width> <height>          Set the window siz
+            -f   --fullscreen                       Set the window to fullscree
         display
-          -r,  --resolution <width> <height> Set the resolutio
-          -p,  --primary <color_hex>         Set the primary colo
-          -s,  --secondary <color_hex>       Set the secondary colo
+            -r,  --resolution <width> <height>      Set the resolutio
+            -p,  --primary <color_hex>              Set the primary color
+            -s,  --secondary <color_hex>            Set the secondary color
+            -ss, --screen-size <width> <height>     Set the screen size [By default it is the same as the resolution]
         gun
-          -rg, --radius <radius>             Set the radius of the electron gun
-          -df, --dim-factor <factor>         Set the dim factor per frame
+            -rg, --radius <radius>                  Set the radius of the electron gun
+            -df, --dim-factor <factor>              Set the dim factor per frame
         executor:
-          -i,  --pipe <pipe>                 Set the pipe to read the instructions
-          -e,  --instruction-per-frame <n>   Set the number of instructions per frame
-          -fr, --frame-rate <n>              Set the frame rate
+            -ip,  --instruction-pipe <pipe>         Set the pipe to read the instructions 
+                default (unix): /tmp/mv_pipe
+                default (windows): \\\\.\\pipe\\mv_pipe
+            -ep,  --event-pipe <pipe>               Set the pipe to send the events (none by default)
+            -e,  --instruction-per-frame <n>        Set the number of instructions per frame [If not set, it will execute all instructions in the buffer at once]
+            -fr, --frame-rate <n>                   Set the frame rate
 ";
 
 /// The error type for invalid arguments
@@ -62,7 +66,7 @@ async fn run(config: Config) -> Result<()> {
 /// Parse the command line arguments
 pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgumentError> {
     let mut config = Config {
-        pipe: Some(DEFAULT_PIPE.to_string()),
+        instruction_pipe: Some(DEFAULT_PIPE.to_string()),
         ..Default::default()
     };
     let mut i = 1;
@@ -107,6 +111,23 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
                 };
                 i += 3;
             }
+            "-ss" | "--screen-size" => {
+                let width = args
+                    .get(i + 1)
+                    .ok_or(InvalidArgumentError::InvalidResolution)?;
+                let height = args
+                    .get(i + 2)
+                    .ok_or(InvalidArgumentError::InvalidResolution)?;
+                config.screen_size = glam::Vec2::new(
+                    width
+                        .parse()
+                        .map_err(|_| InvalidArgumentError::InvalidResolution)?,
+                    height
+                        .parse()
+                        .map_err(|_| InvalidArgumentError::InvalidResolution)?,
+                );
+                i += 3;
+            }
             "-p" | "--primary" => {
                 let value = args
                     .get(i + 1)
@@ -139,9 +160,14 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
                     .map_err(|_| InvalidArgumentError::InvalidDimFactor)?;
                 i += 2;
             }
-            "-i" | "--pipe" => {
+            "-ip" | "--instruction-pipe" => {
                 let value = args.get(i + 1).ok_or(InvalidArgumentError::InvalidPipe)?;
-                config.pipe = Some(value.to_string());
+                config.instruction_pipe = Some(value.to_string());
+                i += 2;
+            }
+            "-ep" | "--event-pipe" => {
+                let value = args.get(i + 1).ok_or(InvalidArgumentError::InvalidPipe)?;
+                config.event_pipe = Some(value.to_string());
                 i += 2;
             }
             "-e" | "--instruction-per-frame" => {
@@ -153,7 +179,7 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
                     .map_err(|_| InvalidArgumentError::InvalidInstructionPerFrame)?;
                 i += 2;
             }
-            "-fr" | "--frame-rate" => {
+            "-fps" | "--frame-rate" => {
                 let value = args
                     .get(i + 1)
                     .ok_or(InvalidArgumentError::InvalidFrameRate)?;

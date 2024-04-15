@@ -53,7 +53,7 @@ impl Instruction {
                 break;
             }
 
-            let mut bytes = [0; INSTRUCTION_SIZE];
+            let mut bytes: [u8; 5] = [0; INSTRUCTION_SIZE];
             // Log chunk as hex
             bytes.copy_from_slice(chunk);
             match Instruction::from_bytes(bytes) {

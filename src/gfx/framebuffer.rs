@@ -1,3 +1,5 @@
+use wgpu::util::DeviceExt;
+
 use crate::color::Color;
 
 use super::WgpuState;
@@ -11,7 +13,8 @@ pub struct FrameBuffer {
     texture_view: wgpu::TextureView,
     sampler: wgpu::Sampler,
     render_pipeline: wgpu::RenderPipeline,
-    bind_group: wgpu::BindGroup,
+    texture_bind_group: wgpu::BindGroup,
+    aspect_bind_group: wgpu::BindGroup,
 }
 
 impl FrameBuffer {
@@ -22,15 +25,26 @@ impl FrameBuffer {
 
         let shader = compile_shader(&wgpu_state.device, FRAMEBUFFER_SHADER);
 
-        let bind_group_layout = create_bind_group_layout(&wgpu_state.device);
-        let bind_group = create_bind_group(
+        let texture_bind_group_layout = create_texture_bind_group_layout(&wgpu_state.device);
+        let texture_bind_group = create_texture_bind_group(
             &wgpu_state.device,
-            &bind_group_layout,
+            &texture_bind_group_layout,
             &texture_view,
             &sampler,
         );
 
-        let pipeline_layout = create_pipeline_layout(&wgpu_state.device, &bind_group_layout);
+        let aspect_bind_group_layout = create_aspect_bind_group_layout(&wgpu_state.device);
+        let aspect_bind_group = create_aspect_bind_group(
+            &wgpu_state.device,
+            &aspect_bind_group_layout,
+            resolution.0 as f32 / resolution.1 as f32,
+        );
+
+        let pipeline_layout = create_pipeline_layout(
+            &wgpu_state.device,
+            &texture_bind_group_layout,
+            &aspect_bind_group_layout,
+        );
         let render_pipeline = create_render_pipeline(
             &wgpu_state.device,
             wgpu_state.config.format,
@@ -42,7 +56,8 @@ impl FrameBuffer {
             texture,
             texture_view,
             sampler,
-            bind_group,
+            texture_bind_group,
+            aspect_bind_group,
             render_pipeline,
         }
     }
@@ -103,12 +118,22 @@ impl FrameBuffer {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.bind_group, &[]);
+            render_pass.set_bind_group(0, &self.texture_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.aspect_bind_group, &[]);
             render_pass.draw(0..3, 0..1);
         }
         wgpu_state.queue.submit(std::iter::once(encoder.finish()));
         output.present();
         Ok(())
+    }
+
+    /// Update the aspect ratio
+    pub fn update_aspect(&mut self, wgpu_state: &WgpuState, aspect_ratio: f32) {
+        self.aspect_bind_group = create_aspect_bind_group(
+            &wgpu_state.device,
+            &create_aspect_bind_group_layout(&wgpu_state.device),
+            aspect_ratio,
+        );
     }
 
     /// Get the texture view
@@ -176,6 +201,47 @@ fn compile_shader(device: &wgpu::Device, shader: &str) -> wgpu::ShaderModule {
     })
 }
 
+/// Create the aspect ratio bind group layout
+fn create_aspect_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("FrameBuffer Aspect Ratio Bind Group Layout"),
+        entries: &[wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }],
+    })
+}
+
+/// Create the aspect ratio bind group
+fn create_aspect_bind_group(
+    device: &wgpu::Device,
+    layout: &wgpu::BindGroupLayout,
+    aspect_ratio: f32,
+) -> wgpu::BindGroup {
+    device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some("FrameBuffer Aspect Ratio Bind Group"),
+        layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
+                buffer: &device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("FrameBuffer Aspect Ratio Buffer"),
+                    contents: bytemuck::cast_slice(&[aspect_ratio]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                }),
+                offset: 0,
+                size: None,
+            }),
+        }],
+    })
+}
+
 /// Create the render pipeline
 fn create_render_pipeline(
     device: &wgpu::Device,
@@ -218,17 +284,18 @@ fn create_render_pipeline(
 /// Create the pipeline layout
 fn create_pipeline_layout(
     device: &wgpu::Device,
-    bind_group_layout: &wgpu::BindGroupLayout,
+    texture_bind_group_layout: &wgpu::BindGroupLayout,
+    aspect_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::PipelineLayout {
     device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("FrameBuffer Pipeline Layout"),
-        bind_group_layouts: &[&bind_group_layout],
+        bind_group_layouts: &[&texture_bind_group_layout, &aspect_bind_group_layout],
         push_constant_ranges: &[],
     })
 }
 
 /// Create the bind group layout
-fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+fn create_texture_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("FrameBuffer Bind Group Layout"),
         entries: &[
@@ -253,7 +320,7 @@ fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
 }
 
 /// Create the bind group
-fn create_bind_group(
+fn create_texture_bind_group(
     device: &wgpu::Device,
     layout: &wgpu::BindGroupLayout,
     texture_view: &wgpu::TextureView,

@@ -20,23 +20,35 @@ struct PointBuffer {
 struct Parameters {
     radius: f32,
     dim_factor: f32,
+    screen_size: vec2<f32>,
 };
 
+/// The output texture
 @group(0) @binding(0) 
 var output_texture: texture_storage_2d<rgba32float, write>;
+// The input texture
 @group(0) @binding(1)
 var t_diffuse: texture_2d<f32>;
 
+// The colors used to display the output of the shader
 @group(1) @binding(0)
 var<storage, read> display_colors: DisplayColors;
 
+// The buffer of points of the electron gun
 @group(2) @binding(0)
 var<storage, read> point_buffer: PointBuffer;
 @group(2) @binding(1)
 var<storage, read> points_amount: u32;
 
+// The parameters of the shader
 @group(3) @binding(0)
 var<uniform> parameters: Parameters;
+
+/// Project a point from the screen space to the resolution space
+fn project_point(point: vec2<f32>, screen_size: vec2<f32>, resolution: vec2<f32>) -> vec2<f32> {
+    let normalized_point = point / screen_size;
+    return normalized_point * resolution;
+}
 
 /// Check if a point is between two other points
 fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, radius: f32) -> bool {
@@ -44,15 +56,15 @@ fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, rad
     let ab: vec2<f32> = b - a;
 
     // Calculate square of length of ab
-    let ab_lenght_sqrd: f32 = dot(ab, ab);
+    let ab_length_sqrd: f32 = dot(ab, ab);
 
-    // If abLengthSq is 0, a and b are the same point, return false
-    if ab_lenght_sqrd == 0.0 {
+    // If ab_length_sq is 0, a and b are the same point, return false
+    if ab_length_sqrd == 0.0 {
         return false;
     }
 
     // Calculate parameter t along ab, clamped between 0 and 1
-    let t: f32 = clamp(dot(ap, ab) / ab_lenght_sqrd, 0.0, 1.0);
+    let t: f32 = clamp(dot(ap, ab) / ab_length_sqrd, 0.0, 1.0);
 
     // Calculate closest point on ab to the point
     let closest: vec2<f32> = a + t * ab;
@@ -65,12 +77,20 @@ fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, rad
 }
 
 /// Check if a pixel should be drawn
-fn should_draw(pixel_coords: vec2<f32>, electron_gun_radius: f32) -> bool {
+fn should_draw(pixel_coords: vec2<f32>, resolution: vec2<f32>, electron_gun_radius: f32) -> bool {
+    if points_amount <= 1u {
+        return false;
+    }
+
+    let projected_pixel_coords = project_point(pixel_coords, parameters.screen_size, resolution);
     // If the point is in between the point behind it reached this frame, draw it
-    for (var i: u32 = 0u; i < points_amount - 1u; i = i + 1u) {
+    for (var i: u32 = 0u; i < points_amount; i = i + 1u) {
         let point = point_buffer.points[i];
         let next_point = point_buffer.points[i + 1u];
-        if is_point_between_two_points(pixel_coords, vec2<f32>(point.x, point.y), vec2<f32>(next_point.x, next_point.y), electron_gun_radius) {
+        let projected_point = project_point(vec2<f32>(point.x, point.y), parameters.screen_size, resolution);
+        let projected_next_point = project_point(vec2<f32>(next_point.x, next_point.y), parameters.screen_size, resolution);
+
+        if is_point_between_two_points(pixel_coords, projected_point, projected_next_point, electron_gun_radius) {
             if point.power != 0u && next_point.power != 0u {
                 return true;
             }
@@ -161,13 +181,9 @@ fn dim_srgb(color: vec3<f32>, amount: f32) -> vec3<f32> {
 fn main(
     @builtin(global_invocation_id) gid: vec3<u32>
 ) {
-    if points_amount <= 1u {
-        return;
-    }
-
-    let dimensions = textureDimensions(t_diffuse);
+    let resolution = textureDimensions(t_diffuse);
     let coords = vec2<i32>(gid.xy);
-    let uv = vec2<f32>(coords) / vec2<f32>(dimensions);
+    let uv = vec2<f32>(coords) / vec2<f32>(resolution);
 
     let dim = 1.0 - parameters.dim_factor;
 
@@ -177,7 +193,7 @@ fn main(
         color.a = color.a * dim;
     }
 
-    if should_draw(vec2<f32>(coords), parameters.radius) {
+    if should_draw(vec2<f32>(coords), vec2<f32>(resolution), parameters.radius) {
         color = vec4<f32>(display_colors.secondary, 1.0);
     }
     textureStore(output_texture, coords, color);

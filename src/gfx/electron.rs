@@ -17,26 +17,47 @@ const ELECTRON_COMPUTE: &'static str = include_str!("../shaders/electron.wgsl");
 pub struct ElectronParams {
     pub radius: f32,
     pub dim_factor: f32,
+    pub screen_size: glam::Vec2,
+}
+
+/// The bind groups for the electron gun simulation
+#[derive(Debug)]
+pub struct ElectronBindGroups {
+    pub texture: wgpu::BindGroup,
+    pub color: wgpu::BindGroup,
+    pub points: wgpu::BindGroup,
+    pub params: wgpu::BindGroup,
+}
+
+/// The bind group layouts for the electron gun simulation
+#[derive(Debug)]
+pub struct ElectronBindGroupLayouts {
+    pub texture: wgpu::BindGroupLayout,
+    pub color: wgpu::BindGroupLayout,
+    pub points: wgpu::BindGroupLayout,
+    pub params: wgpu::BindGroupLayout,
+}
+
+/// The buffers for the electron gun simulation
+#[derive(Debug)]
+pub struct ElectronBuffers {
+    pub color: wgpu::Buffer,
+    pub points: wgpu::Buffer,
+    pub point_amount: wgpu::Buffer,
+    pub params: wgpu::Buffer,
 }
 
 /// Renders the electron gun simulation using the compute shader
 #[derive(Debug)]
 pub struct ElectronRenderer {
     compute_pipeline: wgpu::ComputePipeline,
-    texture_bind_group: wgpu::BindGroup,
 
     texture: wgpu::Texture,
     texture_view: wgpu::TextureView,
 
-    color_bind_group: wgpu::BindGroup,
-    color_buffer: wgpu::Buffer,
-
-    point_bind_group: wgpu::BindGroup,
-    point_buffer: wgpu::Buffer,
-    point_amount_buffer: wgpu::Buffer,
-
-    param_buffer: wgpu::Buffer,
-    param_bind_group: wgpu::BindGroup,
+    buffers: ElectronBuffers,
+    bind_groups: ElectronBindGroups,
+    layouts: ElectronBindGroupLayouts,
 }
 
 impl ElectronRenderer {
@@ -46,45 +67,38 @@ impl ElectronRenderer {
         framebuffer: &FrameBuffer,
         point_buffer_size: usize,
         params: &ElectronParams,
+        resolution: (u32, u32),
     ) -> anyhow::Result<Self> {
         let module = create_shader_module(&wgpu_state.device, ELECTRON_COMPUTE);
-        let color_buffer = create_color_buffer(&wgpu_state.device);
-        let point_buffer = create_point_buffer(&wgpu_state.device, point_buffer_size);
-        let point_amount_buffer = create_point_amount_buffer(&wgpu_state.device);
-        let param_buffer = create_param_buffer(&wgpu_state.device, params);
 
-        let (texture, texture_view) =
-            create_texture(&wgpu_state.device, framebuffer.texture().size());
+        let buffers = create_buffers(&wgpu_state.device, point_buffer_size, params);
+        let layouts = create_bind_group_layouts(&wgpu_state.device);
 
-        let (
-            compute_pipeline,
-            texture_bind_group,
-            color_bind_group,
-            point_bind_group,
-            param_bind_group,
-        ) = create_compute_pipeline(
+        let (texture, texture_view) = create_texture(
             &wgpu_state.device,
-            &module,
-            &color_buffer,
-            &point_buffer,
-            &point_amount_buffer,
-            &param_buffer,
+            wgpu::Extent3d {
+                width: resolution.0,
+                height: resolution.1,
+                depth_or_array_layers: 1,
+            },
+        );
+        let bind_groups = create_bind_groups(
+            &wgpu_state.device,
             &texture_view,
             framebuffer,
+            &buffers,
+            &layouts,
         );
+
+        let compute_pipeline = create_compute_pipeline(&wgpu_state.device, &module, &layouts);
 
         Ok(Self {
             compute_pipeline,
-            texture_bind_group,
             texture,
             texture_view,
-            color_bind_group,
-            color_buffer,
-            point_bind_group,
-            point_buffer,
-            point_amount_buffer,
-            param_buffer,
-            param_bind_group,
+            buffers,
+            bind_groups,
+            layouts,
         })
     }
 
@@ -102,11 +116,11 @@ impl ElectronRenderer {
             let y = framebuffer.texture().size().height;
             let mut cpass = encoder.begin_compute_pass(&Default::default());
             cpass.set_pipeline(&self.compute_pipeline);
-            cpass.set_bind_group(0, &self.texture_bind_group, &[]);
-            cpass.set_bind_group(1, &self.color_bind_group, &[]);
-            cpass.set_bind_group(2, &self.point_bind_group, &[]);
-            cpass.set_bind_group(3, &self.param_bind_group, &[]);
-            cpass.dispatch_workgroups(x / COMPUTE_WORKGROUP_SIZE, y / COMPUTE_WORKGROUP_SIZE, 1);
+            cpass.set_bind_group(0, &self.bind_groups.texture, &[]);
+            cpass.set_bind_group(1, &self.bind_groups.color, &[]);
+            cpass.set_bind_group(2, &self.bind_groups.points, &[]);
+            cpass.set_bind_group(3, &self.bind_groups.params, &[]);
+            cpass.dispatch_workgroups(compute_workgroup_count(x), compute_workgroup_count(y), 1);
         }
 
         // Copy the texture to the framebuffer
@@ -127,17 +141,42 @@ impl ElectronRenderer {
     pub fn set_points(&mut self, wgpu_state: &WgpuState, points: &VecDeque<Point>) -> Result<()> {
         let mut buffer = StorageBuffer::new(vec![]);
         buffer.write(points).map_err(|e| anyhow::anyhow!(e))?;
+        // Update the point buffer size
+        self.update_point_buffer_size(wgpu_state, points.len());
+        // Write the buffer
         wgpu_state
             .queue
-            .write_buffer(&self.point_buffer, 0, &buffer.into_inner());
+            .write_buffer(&self.buffers.points, 0, &buffer.into_inner());
+
+        // Set the point amount
         let amount = points.len() as u32;
         wgpu_state.queue.write_buffer(
-            &self.point_amount_buffer,
+            &self.buffers.point_amount,
             0,
             bytemuck::cast_slice(&[amount]),
         );
 
         Ok(())
+    }
+
+    /// Update the point buffer size
+    fn update_point_buffer_size(&mut self, wgpu_state: &WgpuState, size: usize) {
+        let aligned_point_size = wgpu::util::align_to(std::mem::size_of::<Point>() as u64, 16);
+        let new_size = aligned_point_size * size as u64;
+        if new_size != self.buffers.points.size() && new_size > 0 {
+            self.buffers.points = wgpu_state.device.create_buffer(&wgpu::BufferDescriptor {
+                label: Some("Point Buffer"),
+                size: new_size,
+                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
+                mapped_at_creation: false,
+            });
+            self.bind_groups.points = create_point_bind_group(
+                &wgpu_state.device,
+                &self.layouts.points,
+                &self.buffers.points,
+                &self.buffers.point_amount,
+            );
+        }
     }
 
     /// Set the display colors
@@ -155,7 +194,7 @@ impl ElectronRenderer {
         buffer.write(&colors).map_err(|e| anyhow::anyhow!(e))?;
         wgpu_state
             .queue
-            .write_buffer(&self.color_buffer, 0, &buffer.into_inner());
+            .write_buffer(&self.buffers.color, 0, &buffer.into_inner());
         Ok(())
     }
 
@@ -165,7 +204,7 @@ impl ElectronRenderer {
         buffer.write(params).map_err(|e| anyhow::anyhow!(e))?;
         wgpu_state
             .queue
-            .write_buffer(&self.param_buffer, 0, &buffer.into_inner());
+            .write_buffer(&self.buffers.params, 0, &buffer.into_inner());
         Ok(())
     }
 
@@ -188,52 +227,75 @@ fn create_shader_module(device: &wgpu::Device, source: &str) -> wgpu::ShaderModu
     })
 }
 
+/// Create the buffers
+fn create_buffers(
+    device: &wgpu::Device,
+    point_buffer_size: usize,
+    params: &ElectronParams,
+) -> ElectronBuffers {
+    let color = create_color_buffer(device);
+    let points = create_point_buffer(device, point_buffer_size);
+    let point_amount = create_point_amount_buffer(device);
+    let params = create_param_buffer(device, params);
+    ElectronBuffers {
+        color,
+        points,
+        point_amount,
+        params,
+    }
+}
+
+/// Create the bind group layouts
+fn create_bind_group_layouts(device: &wgpu::Device) -> ElectronBindGroupLayouts {
+    let texture = create_texture_bind_group_layout(device);
+    let color = create_color_buffer_bind_group_layout(device);
+    let points = create_point_bind_group_layout(device);
+    let params = create_param_bind_group_layout(device);
+    ElectronBindGroupLayouts {
+        texture,
+        color,
+        points,
+        params,
+    }
+}
+
+/// Create the bind groups
+fn create_bind_groups(
+    device: &wgpu::Device,
+    texture_view: &wgpu::TextureView,
+    framebuffer: &FrameBuffer,
+    buffers: &ElectronBuffers,
+    layouts: &ElectronBindGroupLayouts,
+) -> ElectronBindGroups {
+    let texture = create_texture_bind_group(device, &layouts.texture, texture_view, framebuffer);
+    let color = create_color_buffer_bind_group(device, &layouts.color, &buffers.color);
+    let points = create_point_bind_group(
+        device,
+        &layouts.points,
+        &buffers.points,
+        &buffers.point_amount,
+    );
+    let params = create_param_bind_group(device, &layouts.params, &buffers.params);
+    ElectronBindGroups {
+        texture,
+        color,
+        points,
+        params,
+    }
+}
+
 /// Create a compute pipeline and bind group
 fn create_compute_pipeline(
     device: &wgpu::Device,
     module: &wgpu::ShaderModule,
-    color_buffer: &wgpu::Buffer,
-    point_buffer: &wgpu::Buffer,
-    point_amount_buffer: &wgpu::Buffer,
-    param_buffer: &wgpu::Buffer,
-    texture_view: &wgpu::TextureView,
-    framebuffer: &FrameBuffer,
-) -> (
-    wgpu::ComputePipeline,
-    wgpu::BindGroup,
-    wgpu::BindGroup,
-    wgpu::BindGroup,
-    wgpu::BindGroup,
-) {
-    let texture_bind_group_layout = create_texture_bind_group_layout(device);
-    let texture_bind_group = create_texture_bind_group(
-        device,
-        &texture_bind_group_layout,
-        texture_view,
-        framebuffer,
-    );
-
-    let color_bind_group_layout = create_color_buffer_bind_group_layout(device);
-    let color_bind_group =
-        create_color_buffer_bind_group(device, &color_bind_group_layout, color_buffer);
-
-    let point_bind_group_layout = create_point_bind_group_layout(device);
-    let point_bind_group = create_point_bind_group(
-        device,
-        &point_bind_group_layout,
-        &point_buffer,
-        &point_amount_buffer,
-    );
-
-    let param_bind_group_layout = create_param_bind_group_layout(device);
-    let param_bind_group = create_param_bind_group(device, &param_bind_group_layout, param_buffer);
-
+    layouts: &ElectronBindGroupLayouts,
+) -> wgpu::ComputePipeline {
     let pipeline_layout = create_pipeline_layout(
         device,
-        &texture_bind_group_layout,
-        &color_bind_group_layout,
-        &point_bind_group_layout,
-        &param_bind_group_layout,
+        &layouts.texture,
+        &layouts.color,
+        &layouts.points,
+        &layouts.params,
     );
     let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
         label: Some("Electron Compute Pipeline"),
@@ -242,13 +304,7 @@ fn create_compute_pipeline(
         entry_point: "main",
     });
 
-    (
-        pipeline,
-        texture_bind_group,
-        color_bind_group,
-        point_bind_group,
-        param_bind_group,
-    )
+    pipeline
 }
 
 /// Create the bind group layout
@@ -533,4 +589,9 @@ fn create_param_bind_group(
             }),
         }],
     })
+}
+
+/// Figure out how many workgroups we need to dispatch based on the size of the texture
+fn compute_workgroup_count(size: u32) -> u32 {
+    (size + COMPUTE_WORKGROUP_SIZE - 1) / COMPUTE_WORKGROUP_SIZE
 }

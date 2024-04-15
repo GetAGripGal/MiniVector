@@ -18,6 +18,7 @@ image = "0.25"
 bytemuck = "1.15.0"
 glam = "0.25"
 instant = "0.1"
+hashbrown = "0.14"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["namedpipeapi", "handleapi"] }
