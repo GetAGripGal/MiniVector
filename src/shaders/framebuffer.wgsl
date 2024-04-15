@@ -54,6 +54,12 @@ fn crt_vignette(uv: vec2<f32>, falloff: f32, strength: f32) -> vec4<f32> {
     return vec4(vignette * strength, vignette * strength, vignette * strength, 1.0);
 }
 
+/// Add noise to the screen
+fn crt_noise(uv: vec2<f32>, strength: f32) -> vec4<f32> {
+    let noise = (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * strength;
+    return vec4(noise, noise, noise, 1.0);
+}
+
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
@@ -64,6 +70,6 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
     let base = textureSample(t_diffuse, s_diffuse, crt_uv);
-    var color = base;
+    var color = crt_noise(in.uv, 0.1) * 0.1 + base;
     return color;
 }
