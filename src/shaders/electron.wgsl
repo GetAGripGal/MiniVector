@@ -91,7 +91,7 @@ fn should_draw(pixel_coords: vec2<f32>, resolution: vec2<f32>, electron_gun_radi
         let projected_next_point = project_point(vec2<f32>(next_point.x, next_point.y), parameters.screen_size, resolution);
 
         if is_point_between_two_points(pixel_coords, projected_point, projected_next_point, electron_gun_radius) {
-            if point.power != 0u && next_point.power != 0u {
+            if next_point.power != 0u {
                 return true;
             }
         }
