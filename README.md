@@ -1,22 +1,9 @@
 # MiniVector
 
-A programmable XY vector display simulator for unix-like systems and [Windows 96](https://windows96.net/).
-Written using GLFW, OpenGl and [HandmadeMath](https://github.com/HandmadeMath/HandmadeMath).
+A programmable XY vector display simulator.
+Written in rust and wgpu.
 
-![minivector_demo](docs/radar.gif)
-
-## TODO
-
-- Improve accuracy of fade-out
-- Add pipe for input and event polling (This will allow other applications to interact with the window / keyboard input)
-- [Windows 96](https://windows96.net/) support
-
-### Pie in the sky
-
-There are some non-essential features I would like to add in the future.
-
-- Seperate utility for font rendering
-- Seperate utility for vector art drawing
+![minivector_demo](docs/legacy/radar.gif)
 
 ## Usage
 
@@ -35,7 +22,7 @@ cat test/drawings/hello_world.mv >> /tmp/mv_pipe   # Send instructions
 ```
 usage: ./bin/Debug/minivector [options]
 options:
-    window: 
+    window:
       -w,  --window <width> <height>     Set the window size
       -f   --fullscreen                  Set the window to fullscreen
     display:
@@ -77,47 +64,4 @@ The following is a list of supported instructions and their additional data
 - 0x00000001 : Move to position   [X: ii6, Y: i16]
 - 0x00000010 : Electron gun on    [No Data]
 - 0x00000011 : Electron gun off   [No Data]
-```
-
-### Legacy Mode
-
-Legacy mode is the original GL_LINES-based proof of concept.
-This mode is perserved for because I like it :3
-
-This mode supports a limited subset of instructions
-
-```
-- 0x00000000 : Clear display      [No Data]
-- 0x00000001 : Move to position   [X: ii6, Y: i16]
-```
-
-## Building
-
-This repo uses premake. The additional libraries are stored in vendor.
-
-### Cloning
-
-You can clone the repo and all its repositories with `--recursive`:
-
-```bash
-git clone https://github.com/ComLarsic/MiniVector.git --recursive
-```
-
-### Building UNIX
-
-Generate the makefiles using premake.
-Then build it using make:
-
-```bash
-premake5 gmake
-cd build
-make
-```
-
-### Building Windows96
-Building and packaging for windows 96 can be done with this handy dandy script:
-
-```
-chmod +x ./win96pack.sh
-./win96pack.sh
 ```
