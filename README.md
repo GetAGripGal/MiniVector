@@ -20,25 +20,26 @@ cat test/drawings/hello_world.mv >> /tmp/mv_pipe   # Send instructions
 ### Options
 
 ```
-usage: ./bin/Debug/minivector [options]
-options:
-    window:
-      -w,  --window <width> <height>     Set the window size
-      -f   --fullscreen                  Set the window to fullscreen
-    display:
-      -r,  --resolution <width> <height> Set the resolution
-      -p,  --primary <color_hex>         Set the primary color
-      -s,  --secondary <color_hex>       Set the secondary color
-    gun:
-      -rg, --radius <radius>             Set the radius of the electron gun
-      -df, --dim-factor <factor>         Set the dim factor per frame
-    executor:
-      -i,  --pipe <pipe>                 Set the pipe to read the instructions
-      -e,  --instruction-per-frame <n>   Set the number of instructions per frame
-      -fr, --frame-rate <n>              Set the frame rate
-    legacy:
-      -le, --legacy                      Use the legacy renderer
-      -l,  --line-width <width>          Set the line width
+usage: minivector [options]
+    options:
+        window:
+            -w,  --window <width> <height>          Set the window siz
+            -f   --fullscreen                       Set the window to fullscree
+        display
+            -r,  --resolution <width> <height>      Set the resolutio
+            -p,  --primary <color_hex>              Set the primary color
+            -s,  --secondary <color_hex>            Set the secondary color
+            -ss, --screen-size <width> <height>     Set the screen size [By default it is the same as the resolution]
+        gun
+            -rg, --radius <radius>                  Set the radius of the electron gun
+            -df, --dim-factor <factor>              Set the dim factor per frame
+        executor:
+            -ip,  --instruction-pipe <pipe>         Set the pipe to read the instructions
+                default (unix): /tmp/mv_pipe
+                default (windows): \\\\.\\pipe\\mv_pipe
+            -ep,  --event-pipe <pipe>               Set the pipe to send the events (none by default)
+            -e,  --instruction-per-frame <n>        Set the number of instructions per frame [If not set, it will execute all instructions in the buffer at once]
+            -fr, --frame-rate <n>                   Set the frame rate
 ```
 
 ## Instructions
