@@ -3,7 +3,7 @@
 A programmable XY vector display simulator.
 Written in rust and wgpu.
 
-![minivector_demo](docs/legacy/radar.gif)
+![minivector_demo](docs/radar.gif)
 
 ## Usage
 

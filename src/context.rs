@@ -81,6 +81,7 @@ impl Context {
             &frame_buffer,
             (config.instruction_per_frame + 1) as usize,
             &ElectronParams {
+                point_amount: 0,
                 radius: config.radius,
                 dim_factor: config.dim_factor,
                 screen_size: (config.screen_size.x, config.screen_size.y).into(),

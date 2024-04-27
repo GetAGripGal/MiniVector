@@ -18,6 +18,7 @@ struct PointBuffer {
 
 /// The parameters of the shader
 struct Parameters {
+    point_amount: u32,
     radius: f32,
     dim_factor: f32,
     screen_size: vec2<f32>,
@@ -82,18 +83,25 @@ fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, rad
 
 /// Check if a pixel should be drawn
 fn should_draw(pixel_coords: vec2<f32>, resolution: vec2<f32>, electron_gun_radius: f32) -> bool {
-    if points_amount <= 1u {
+    if parameters.point_amount <= 1u {
         return false;
     }
 
     let projected_pixel_coords = project_point(pixel_coords, parameters.screen_size, resolution);
     // If the point is in between the point behind it reached this frame, draw it
-    for (var i: u32 = 0u; i < points_amount; i = i + 1u) {
+    for (var i: u32 = 0u; i < parameters.point_amount; i = i + 1u) {
         let point = point_buffer.points[i];
+
         let next_point = point_buffer.points[i + 1u];
         let projected_point = project_point(vec2<f32>(point.x, point.y), parameters.screen_size, resolution);
         let projected_next_point = project_point(vec2<f32>(next_point.x, next_point.y), parameters.screen_size, resolution);
 
+        if i + 1u >= parameters.point_amount {
+            let current_point = point_buffer.points[parameters.point_amount - 1];
+            let current_point_projected = project_point(vec2<f32>(current_point.x, current_point.y), parameters.screen_size, resolution);
+            let distance = distance(pixel_coords, current_point_projected);
+            return distance < parameters.radius && current_point.power > 0u;
+        }
         if is_point_between_two_points(pixel_coords, projected_point, projected_next_point, electron_gun_radius) {
             if next_point.power != 0u {
                 return true;
@@ -200,7 +208,7 @@ fn main(
     }
 
     // Get the current point
-    let current_point = point_buffer.points[points_amount];
+    let current_point = point_buffer.points[parameters.point_amount - 1];
     let should_draw = should_draw(vec2<f32>(coords), vec2<f32>(resolution), parameters.radius);
 
     let projected_point = normalize_point(vec2<f32>(coords), parameters.screen_size);
@@ -213,9 +221,10 @@ fn main(
 
         // Add dim in current frame by checking the distance to the current point and interpolating the dim
         let d = dim * dist_to_current / aspect;
-        color = vec4<f32>(dim_srgb(color.rgb, d), color.a);
-        color.a = color.a * d;
-
+        if d > 0.0 {
+            color = vec4<f32>(dim_srgb(color.rgb, d), color.a);
+            color.a = color.a * d;
+        }
         // Clamp the color to 0.0 - 1.0
         color = clamp(color * 1.0, vec4<f32>(0.0), vec4<f32>(1.0));
     }
