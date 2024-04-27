@@ -15,6 +15,7 @@ pub enum EventKind {
     MouseMoved,
     MousePressed,
     MouseReleased,
+    InstructionBufferEmpty,
 }
 
 /// An event that gets dispatched by minivector.
@@ -92,6 +93,7 @@ impl Event {
             3 => EventKind::MouseMoved,
             4 => EventKind::MousePressed,
             5 => EventKind::MouseReleased,
+            6 => EventKind::InstructionBufferEmpty,
             _ => return Err(anyhow::anyhow!("Invalid event kind").into()),
         };
 
@@ -122,6 +124,7 @@ impl Into<u8> for EventKind {
             EventKind::MouseMoved => 3,
             EventKind::MousePressed => 4,
             EventKind::MouseReleased => 5,
+            EventKind::InstructionBufferEmpty => 6,
         }
     }
 }

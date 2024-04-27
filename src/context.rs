@@ -250,6 +250,11 @@ impl Context {
                 }
                 self.processor.process();
 
+                // // Clear if the processor requests it
+                // if self.processor.should_clear() {
+                //     self.electron_renderer.clear(&mut self.wgpu_state);
+                // }
+
                 // Update the electron renderer
                 self.electron_renderer
                     .set_points(&self.wgpu_state, self.processor.points())

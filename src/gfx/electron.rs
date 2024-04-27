@@ -137,6 +137,46 @@ impl ElectronRenderer {
         wgpu_state.queue.submit(std::iter::once(encoder.finish()));
     }
 
+    /// Clear the texture by filling it with zeros
+    pub fn clear(&self, wgpu_state: &WgpuState) {
+        let mut encoder =
+            wgpu_state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Electron Command Encoder"),
+                });
+
+        let size = self.texture.size();
+        let contents = vec![0u8; 4 * size.width as usize * size.height as usize];
+        let buffer = wgpu_state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Clear Buffer"),
+                contents: &contents,
+                usage: wgpu::BufferUsages::COPY_SRC,
+            });
+
+        encoder.copy_buffer_to_texture(
+            wgpu::ImageCopyBuffer {
+                buffer: &buffer,
+                layout: wgpu::ImageDataLayout {
+                    offset: 0,
+                    bytes_per_row: None,
+                    rows_per_image: None,
+                },
+            },
+            wgpu::ImageCopyTexture {
+                texture: &self.texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            size,
+        );
+
+        wgpu_state.queue.submit(std::iter::once(encoder.finish()));
+    }
+
     /// Set the points
     pub fn set_points(&mut self, wgpu_state: &WgpuState, points: &VecDeque<Point>) -> Result<()> {
         let mut buffer = StorageBuffer::new(vec![]);
@@ -407,7 +447,9 @@ fn create_texture(
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
         format: wgpu::TextureFormat::Rgba32Float,
-        usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        usage: wgpu::TextureUsages::STORAGE_BINDING
+            | wgpu::TextureUsages::COPY_SRC
+            | wgpu::TextureUsages::COPY_DST,
         view_formats: &[wgpu::TextureFormat::Rgba32Float],
     });
     let view = texture.create_view(&Default::default());

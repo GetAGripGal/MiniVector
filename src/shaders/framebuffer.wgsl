@@ -60,16 +60,27 @@ fn crt_noise(uv: vec2<f32>, strength: f32) -> vec4<f32> {
     return vec4(noise, noise, noise, 1.0);
 }
 
+/// Smoothly read from texture
+fn smooth_pixel(t_diffuse: texture_2d<f32>, s_diffuse: sampler, tex_coords: vec2<f32>, texture_size: vec2<u32>, strength: f32) -> vec4<f32> {
+    let texel_size = vec2<f32>(1.0) / vec2<f32>(texture_size);
+
+    var color: vec4<f32> = vec4<f32>(0.0);
+
+    color += textureSample(t_diffuse, s_diffuse, tex_coords + vec2<f32>(-texel_size.x, -texel_size.y)) * strength;
+    color += textureSample(t_diffuse, s_diffuse, tex_coords + vec2<f32>(texel_size.x, -texel_size.y)) * strength;
+    color += textureSample(t_diffuse, s_diffuse, tex_coords + vec2<f32>(-texel_size.x, texel_size.y)) * strength;
+    color += textureSample(t_diffuse, s_diffuse, tex_coords + vec2<f32>(texel_size.x, texel_size.y)) * strength;
+
+    return color;
+}
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    // let texture_dimensions = textureDimensions(t_diffuse, 0);
-    // let texture_aspect = f32(texture_dimensions.x) / f32(texture_dimensions.y);
     let crt_uv = crt_curve(in.uv);
     if crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0 {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
-    let base = textureSample(t_diffuse, s_diffuse, crt_uv);
+    let base = smooth_pixel(t_diffuse, s_diffuse, crt_uv, textureDimensions(t_diffuse), 1.0);
     var color = crt_noise(in.uv, 0.1) * 0.1 + base;
     return color;
 }

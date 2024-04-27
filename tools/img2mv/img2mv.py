@@ -48,7 +48,7 @@ def find_contours(image):
     return contours
 
 
-def flatten_frames(contours):
+def flatten_frame(contours):
     """
     Flatten a list of frames into a list of contours
     """
@@ -89,6 +89,21 @@ def convert_to_instructions(contours):
     return instructions
 
 
+def image_to_instructions(image):
+    """
+    Convert an image to a set of instructions
+    """
+    resolution[0] = image.shape[1]
+    resolution[1] = image.shape[0]
+    print(f"Resolution: {resolution[0]}x{resolution[1]}")
+    contours = extract_contours(image)
+    print(f"Extracted {len(contours)} contours")
+    flattened = flatten_frame(contours)
+    print(f"Flattened {len(flattened)} contours")
+    instructions = convert_to_instructions(flattened)
+    return instructions
+
+
 def read_args():
     """
     Read the arguments from the command line
@@ -103,14 +118,7 @@ def read_args():
 
 def main():
     image = cv2.imread(args["image"])
-    resolution[0] = image.shape[1]
-    resolution[1] = image.shape[0]
-    print(f"Resolution: {resolution[0]}x{resolution[1]}")
-    contours = extract_contours(image)
-    print(f"Extracted {len(contours)} contours")
-    flattened = flatten_frames(contours)
-    print(f"Flattened {len(flattened)} contours")
-    instructions = convert_to_instructions(flattened)
+    instructions = image_to_instructions(image)
     print(f"Writing {len(instructions)} instructions to {args['output']}")
     with open(args["output"], "wb") as f:
         for instruction in instructions:

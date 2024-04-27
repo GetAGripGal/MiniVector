@@ -44,10 +44,14 @@ var<storage, read> points_amount: u32;
 @group(3) @binding(0)
 var<uniform> parameters: Parameters;
 
+/// Normalize a point from screen space to texture space
+fn normalize_point(point: vec2<f32>, screen_size: vec2<f32>) -> vec2<f32> {
+    return point / screen_size;
+}
+
 /// Project a point from the screen space to the resolution space
 fn project_point(point: vec2<f32>, screen_size: vec2<f32>, resolution: vec2<f32>) -> vec2<f32> {
-    let normalized_point = point / screen_size;
-    return normalized_point * resolution;
+    return normalize_point(point, screen_size) * resolution;
 }
 
 /// Check if a point is between two other points
@@ -182,6 +186,8 @@ fn main(
     @builtin(global_invocation_id) gid: vec3<u32>
 ) {
     let resolution = textureDimensions(t_diffuse);
+    let aspect = f32(resolution.x) / f32(resolution.y);
+    let screen_aspect = f32(parameters.screen_size.x / parameters.screen_size.y);
     let coords = vec2<i32>(gid.xy);
     let uv = vec2<f32>(coords) / vec2<f32>(resolution);
 
@@ -193,8 +199,26 @@ fn main(
         color.a = color.a * dim;
     }
 
-    if should_draw(vec2<f32>(coords), vec2<f32>(resolution), parameters.radius) {
-        color = vec4<f32>(display_colors.secondary, 1.0);
+    // Get the current point
+    let current_point = point_buffer.points[points_amount];
+    let should_draw = should_draw(vec2<f32>(coords), vec2<f32>(resolution), parameters.radius);
+
+    let projected_point = normalize_point(vec2<f32>(coords), parameters.screen_size);
+    let projected_current = normalize_point(vec2<f32>(current_point.x, current_point.y), parameters.screen_size);
+    let difference_with_current = projected_point - floor(projected_current);
+    let dist_to_current = length(difference_with_current);
+
+    if should_draw {
+        color += vec4<f32>(display_colors.secondary, 1.0);
+
+        // Add dim in current frame by checking the distance to the current point and interpolating the dim
+        let d = dim * dist_to_current / aspect;
+        color = vec4<f32>(dim_srgb(color.rgb, d), color.a);
+        color.a = color.a * d;
+
+        // Clamp the color to 0.0 - 1.0
+        color = clamp(color * 1.0, vec4<f32>(0.0), vec4<f32>(1.0));
     }
+    // color = vec4<f32>(dist_to_current, 0.0, 0.0, 1.0);
     textureStore(output_texture, coords, color);
 }

@@ -172,6 +172,12 @@ def update_game(delta):
         if paddle["position"][1] > ARENA_HEIGHT - PADDLE_HEIGHT:
             paddle["position"][1] = ARENA_HEIGHT - PADDLE_HEIGHT
 
+    # If the escape key is pressed, reset the score and the ball position
+    if 1 in keys_down:
+        game["score"] = [0, 0]
+        game["ball"]["position"] = [ARENA_WIDTH / 2 -
+                                    BALL_RADIUS, ARENA_HEIGHT / 2 - BALL_RADIUS]
+
 
 def render_game():
     """ Render the game state """

@@ -15,6 +15,7 @@ pub struct InstructionProcessor {
     instruction_buffer: VecDeque<Instruction>,
     points: VecDeque<Point>,
     power: bool,
+    should_clear: bool,
     instructions_per_frame: usize,
 }
 
@@ -26,6 +27,7 @@ impl InstructionProcessor {
             points: VecDeque::with_capacity(instructions_per_frame),
             instructions_per_frame,
             power: true,
+            should_clear: false,
         }
     }
 
@@ -66,6 +68,7 @@ impl InstructionProcessor {
         match instruction.kind {
             InstructionKind::Clear => {
                 self.points.clear();
+                self.should_clear = true;
             }
             InstructionKind::MoveTo => {
                 let mut point = Point::from(instruction.data);
@@ -81,5 +84,15 @@ impl InstructionProcessor {
             }
         }
         false
+    }
+
+    /// Return if the renderer should be cleared. If so, return true and set the flag to false.
+    pub fn should_clear(&mut self) -> bool {
+        if self.should_clear {
+            self.should_clear = false;
+            true
+        } else {
+            false
+        }
     }
 }
