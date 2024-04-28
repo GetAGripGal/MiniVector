@@ -37,13 +37,23 @@ var<storage, read> display_colors: DisplayColors;
 
 // The buffer of points of the electron gun
 @group(2) @binding(0)
-var<storage, read> point_buffer: PointBuffer;
+var point_texture: texture_1d<f32>;
 @group(2) @binding(1)
 var<storage, read> points_amount: u32;
 
 // The parameters of the shader
 @group(3) @binding(0)
 var<uniform> parameters: Parameters;
+
+/// Read a point from the lookup texture
+fn read_point(index: u32) -> Point {
+    let data: vec4<f32> = textureLoad(point_texture, index, 0);
+    var out: Point;
+    out.x = data.r;
+    out.y = data.g;
+    out.power = u32(data.b);
+    return out;
+}
 
 /// Normalize a point from screen space to texture space
 fn normalize_point(point: vec2<f32>, screen_size: vec2<f32>) -> vec2<f32> {
@@ -53,6 +63,18 @@ fn normalize_point(point: vec2<f32>, screen_size: vec2<f32>) -> vec2<f32> {
 /// Project a point from the screen space to the resolution space
 fn project_point(point: vec2<f32>, screen_size: vec2<f32>, resolution: vec2<f32>) -> vec2<f32> {
     return normalize_point(point, screen_size) * resolution;
+}
+
+/// Normalize the screen radius to the texture radius
+fn normalize_screen_radius(screen_radius: f32, screen_size: vec2<f32>) -> f32 {
+    // Calculate the diagonal length of the screen
+    let diagonal_length = sqrt(screen_size.x * screen_size.x + screen_size.y * screen_size.y);
+
+    // Calculate the maximum possible radius (half the diagonal length)
+    let max_radius = diagonal_length / 2.0;
+
+    // Normalize the screen radius to the range [0.0, 1.0]
+    return screen_radius / max_radius;
 }
 
 /// Check if a point is between two other points
@@ -82,20 +104,17 @@ fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, rad
 }
 
 /// Check if a pixel should be drawn
-fn should_draw(pixel_coords: vec2<f32>, resolution: vec2<f32>, electron_gun_radius: f32) -> bool {
+fn should_draw(pixel_coords: vec2<f32>, electron_gun_radius: f32) -> bool {
     if points_amount <= 1u {
         return false;
     }
 
-    let projected_pixel_coords = project_point(pixel_coords, parameters.screen_size, resolution);
     // If the point is in between the point behind it reached this frame, draw it
     for (var i: u32 = 0u; i < points_amount; i = i + 1u) {
-        let point = point_buffer.points[i];
-        let next_point = point_buffer.points[i + 1u];
-        let projected_point = project_point(vec2<f32>(point.x, point.y), parameters.screen_size, resolution);
-        let projected_next_point = project_point(vec2<f32>(next_point.x, next_point.y), parameters.screen_size, resolution);
+        let point = read_point(i);
+        let next_point = read_point(i + 1u);
 
-        if is_point_between_two_points(pixel_coords, projected_point, projected_next_point, electron_gun_radius) {
+        if is_point_between_two_points(pixel_coords, vec2<f32>(point.x, point.y), vec2<f32>(next_point.x, next_point.y), electron_gun_radius) {
             if next_point.power != 0u {
                 return true;
             }
@@ -202,17 +221,24 @@ fn main(
 
     // Get the current point
     let current_point = parameters.current_point;
-    let should_draw = should_draw(vec2<f32>(coords), vec2<f32>(resolution), parameters.radius);
+    let radius_normalized = normalize_screen_radius(parameters.radius, parameters.screen_size);
+    let should_draw = should_draw(uv, radius_normalized);
 
     let projected_point = normalize_point(vec2<f32>(coords), parameters.screen_size);
     let projected_current = normalize_point(vec2<f32>(current_point.x, current_point.y), parameters.screen_size);
     let difference_with_current = projected_point - floor(projected_current);
     let dist_to_current = length(difference_with_current) / aspect;
 
+    // if gid.x < points_amount {
+    //     let point = read_point(gid.x);
+    //     textureStore(output_texture, coords, vec4<f32>(point.x * 10, point.y * 10, f32(point.power), 1.0));
+    // }
+
+
     if should_draw {
         color += vec4<f32>(display_colors.secondary, 1.0);
 
-        // Add dim in current frame by checking the distance to the current point and interpolating the dim
+        // // Add dim in current frame by checking the distance to the current point and interpolating the dim
         let d = dim * dist_to_current;
         if d > 0.0 {
             color = vec4<f32>(dim_srgb(color.rgb, d), color.a);

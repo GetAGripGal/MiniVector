@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use encase::{ShaderType, StorageBuffer, UniformBuffer};
 use wgpu::util::DeviceExt;
 
@@ -43,7 +41,6 @@ pub struct ElectronBindGroupLayouts {
 #[derive(Debug)]
 pub struct ElectronBuffers {
     pub color: wgpu::Buffer,
-    pub points: wgpu::Buffer,
     pub point_amount: wgpu::Buffer,
     pub params: wgpu::Buffer,
 }
@@ -55,6 +52,8 @@ pub struct ElectronRenderer {
 
     texture: wgpu::Texture,
     texture_view: wgpu::TextureView,
+    point_texture: wgpu::Texture,
+    point_texture_view: wgpu::TextureView,
 
     buffers: ElectronBuffers,
     bind_groups: ElectronBindGroups,
@@ -68,13 +67,12 @@ impl ElectronRenderer {
     pub fn new(
         wgpu_state: &WgpuState,
         framebuffer: &FrameBuffer,
-        point_buffer_size: usize,
         params: &ElectronParams,
         resolution: (u32, u32),
     ) -> anyhow::Result<Self> {
         let module = create_shader_module(&wgpu_state.device, ELECTRON_COMPUTE);
 
-        let buffers = create_buffers(&wgpu_state.device, point_buffer_size, params);
+        let buffers = create_buffers(&wgpu_state.device, params);
         let layouts = create_bind_group_layouts(&wgpu_state.device);
 
         let (texture, texture_view) = create_texture(
@@ -85,9 +83,17 @@ impl ElectronRenderer {
                 depth_or_array_layers: 1,
             },
         );
+        let (point_texture, point_texture_view) = create_point_lookup_texture(
+            &wgpu_state.device,
+            &wgpu_state.queue,
+            &Vec::new(),
+            params.screen_size.into(),
+        );
+
         let bind_groups = create_bind_groups(
             &wgpu_state.device,
             &texture_view,
+            &point_texture_view,
             framebuffer,
             &buffers,
             &layouts,
@@ -99,6 +105,8 @@ impl ElectronRenderer {
             compute_pipeline,
             texture,
             texture_view,
+            point_texture,
+            point_texture_view,
             buffers,
             bind_groups,
             layouts,
@@ -182,21 +190,28 @@ impl ElectronRenderer {
     }
 
     /// Set the points
-    pub fn set_points(&mut self, wgpu_state: &WgpuState, points: &VecDeque<Point>) -> Result<()> {
-        let mut buffer = StorageBuffer::new(vec![]);
-        buffer.write(points).map_err(|e| anyhow::anyhow!(e))?;
-        // Update the point buffer size
-        self.update_point_buffer_size(wgpu_state, points.len());
-        // Write the buffer
-        wgpu_state
-            .queue
-            .write_buffer(&self.buffers.points, 0, &buffer.into_inner());
+    pub fn set_points(&mut self, wgpu_state: &WgpuState, points: &[Point]) -> Result<()> {
+        // Update the point lookup texture
+        (self.point_texture, self.point_texture_view) = create_point_lookup_texture(
+            &wgpu_state.device,
+            &wgpu_state.queue,
+            points,
+            self.params.screen_size.into(),
+        );
+        self.bind_groups.points = create_point_bind_group(
+            &wgpu_state.device,
+            &self.layouts.points,
+            &self.point_texture_view,
+            &self.buffers.point_amount,
+        );
 
         // Update the point amount buffer
         let point_amount = points.len() as u32;
-        wgpu_state
-            .queue
-            .write_buffer(&self.buffers.point_amount, 0, &point_amount.to_le_bytes());
+        wgpu_state.queue.write_buffer(
+            &self.buffers.point_amount,
+            0,
+            &bytemuck::cast_slice(&[point_amount]),
+        );
 
         // Recreate the params buffer
         if let Some(point) = points.iter().last() {
@@ -205,26 +220,6 @@ impl ElectronRenderer {
         let params = self.params.clone();
         self.update_params(wgpu_state, &params)?;
         Ok(())
-    }
-
-    /// Update the point buffer size
-    fn update_point_buffer_size(&mut self, wgpu_state: &WgpuState, size: usize) {
-        let aligned_point_size = wgpu::util::align_to(std::mem::size_of::<Point>() as u64, 16);
-        let new_size = aligned_point_size * size as u64;
-        if new_size != self.buffers.points.size() && new_size > 0 {
-            self.buffers.points = wgpu_state.device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("Point Buffer"),
-                size: new_size,
-                usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-                mapped_at_creation: false,
-            });
-            self.bind_groups.points = create_point_bind_group(
-                &wgpu_state.device,
-                &self.layouts.points,
-                &self.buffers.points,
-                &self.buffers.point_amount,
-            );
-        }
     }
 
     /// Set the display colors
@@ -277,18 +272,12 @@ fn create_shader_module(device: &wgpu::Device, source: &str) -> wgpu::ShaderModu
 }
 
 /// Create the buffers
-fn create_buffers(
-    device: &wgpu::Device,
-    point_buffer_size: usize,
-    params: &ElectronParams,
-) -> ElectronBuffers {
+fn create_buffers(device: &wgpu::Device, params: &ElectronParams) -> ElectronBuffers {
     let color = create_color_buffer(device);
-    let points = create_point_buffer(device, point_buffer_size);
     let point_amount = create_point_amount_buffer(device);
     let params = create_param_buffer(device, params);
     ElectronBuffers {
         color,
-        points,
         point_amount,
         params,
     }
@@ -312,18 +301,15 @@ fn create_bind_group_layouts(device: &wgpu::Device) -> ElectronBindGroupLayouts 
 fn create_bind_groups(
     device: &wgpu::Device,
     texture_view: &wgpu::TextureView,
+    point_lookup: &wgpu::TextureView,
     framebuffer: &FrameBuffer,
     buffers: &ElectronBuffers,
     layouts: &ElectronBindGroupLayouts,
 ) -> ElectronBindGroups {
     let texture = create_texture_bind_group(device, &layouts.texture, texture_view, framebuffer);
     let color = create_color_buffer_bind_group(device, &layouts.color, &buffers.color);
-    let points = create_point_bind_group(
-        device,
-        &layouts.points,
-        &buffers.points,
-        &buffers.point_amount,
-    );
+    let points =
+        create_point_bind_group(device, &layouts.points, point_lookup, &buffers.point_amount);
     let params = create_param_bind_group(device, &layouts.params, &buffers.params);
     ElectronBindGroups {
         texture,
@@ -513,17 +499,6 @@ fn create_color_buffer(device: &wgpu::Device) -> wgpu::Buffer {
     })
 }
 
-/// Create the point buffer
-fn create_point_buffer(device: &wgpu::Device, point_buffer_size: usize) -> wgpu::Buffer {
-    let aligned_point_size = wgpu::util::align_to(std::mem::size_of::<Point>() as u64, 16);
-    device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Point Buffer"),
-        size: aligned_point_size * point_buffer_size as u64,
-        usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    })
-}
-
 /// Create the point amount buffer
 fn create_point_amount_buffer(device: &wgpu::Device) -> wgpu::Buffer {
     device.create_buffer(&wgpu::BufferDescriptor {
@@ -542,10 +517,10 @@ fn create_point_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayou
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    view_dimension: wgpu::TextureViewDimension::D1,
+                    multisampled: false,
                 },
                 count: None,
             },
@@ -567,7 +542,7 @@ fn create_point_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayou
 fn create_point_bind_group(
     device: &wgpu::Device,
     bind_group_layout: &wgpu::BindGroupLayout,
-    point_buffer: &wgpu::Buffer,
+    point_lookup: &wgpu::TextureView,
     point_amount_buffer: &wgpu::Buffer,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -576,11 +551,7 @@ fn create_point_bind_group(
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: point_buffer,
-                    offset: 0,
-                    size: None,
-                }),
+                resource: wgpu::BindingResource::TextureView(point_lookup),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
@@ -640,6 +611,49 @@ fn create_param_bind_group(
             }),
         }],
     })
+}
+
+/// Create a texture from the point buffer
+pub fn create_point_lookup_texture(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    points: &[Point],
+    screen_size: (f32, f32),
+) -> (wgpu::Texture, wgpu::TextureView) {
+    // Normalize the points to rgb values representing (x, y, power)
+    let normalize = |point: Point| {
+        let x = point.x / screen_size.0;
+        let y = point.y / screen_size.1;
+        [x, y, point.power as f32, 0.0]
+    };
+    let mut data = points.iter().map(|p| normalize(*p)).collect::<Vec<_>>();
+    // If data is empty. Add a blank point to avoid creating a 0 size texture
+    if data.len() <= 0 {
+        data.push([0.0, 0.0, 0.0, 1.0]);
+    }
+
+    let texture = device.create_texture_with_data(
+        &queue,
+        &wgpu::TextureDescriptor {
+            label: Some("Point lookup texture"),
+            size: wgpu::Extent3d {
+                width: data.len() as u32,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D1,
+            format: wgpu::TextureFormat::Rgba32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[wgpu::TextureFormat::Rgba32Float],
+        },
+        wgpu::util::TextureDataOrder::LayerMajor,
+        &bytemuck::cast_slice(&data),
+    );
+
+    let texture_view = texture.create_view(&Default::default());
+    (texture, texture_view)
 }
 
 /// Figure out how many workgroups we need to dispatch based on the size of the texture

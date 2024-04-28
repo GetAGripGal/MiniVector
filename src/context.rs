@@ -6,7 +6,7 @@ use crate::{
         writer::{pipe::NamedPipeWriter, EventWriter},
         Event,
     },
-    gfx::{electron::ElectronParams, point::Point},
+    gfx::electron::ElectronParams,
     instruction,
     processor::InstructionProcessor,
     readers::{pipe::NamedPipeReader, InstructionReader},
@@ -17,6 +17,7 @@ use log::LevelFilter;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
+
 use winit::{
     dpi::PhysicalSize,
     event::WindowEvent,
@@ -79,7 +80,6 @@ impl Context {
         let mut electron_renderer = ElectronRenderer::new(
             &wgpu_state,
             &frame_buffer,
-            (config.instruction_per_frame + 1) as usize,
             &ElectronParams {
                 current_point: (0.0, 0.0).into(),
                 radius: config.radius,

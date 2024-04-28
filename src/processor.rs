@@ -5,6 +5,7 @@ use crate::{
     instruction::{Instruction, InstructionKind},
 };
 
+use slice_deque::SliceDeque;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -12,8 +13,8 @@ use wasm_bindgen::prelude::*;
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct InstructionProcessor {
     // The instruction buffer
-    instruction_buffer: VecDeque<Instruction>,
-    points: VecDeque<Point>,
+    instruction_buffer: SliceDeque<Instruction>,
+    points: SliceDeque<Point>,
     power: bool,
     should_clear: bool,
     instructions_per_frame: usize,
@@ -23,8 +24,8 @@ impl InstructionProcessor {
     /// Create a new instruction processor
     pub fn new(instructions_per_frame: usize) -> Self {
         Self {
-            instruction_buffer: VecDeque::new(),
-            points: VecDeque::with_capacity(instructions_per_frame),
+            instruction_buffer: SliceDeque::new(),
+            points: SliceDeque::with_capacity(instructions_per_frame),
             instructions_per_frame,
             power: true,
             should_clear: false,
@@ -58,7 +59,7 @@ impl InstructionProcessor {
     }
 
     /// Return the points
-    pub fn points(&self) -> &VecDeque<Point> {
+    pub fn points(&self) -> &[Point] {
         &self.points
     }
 
