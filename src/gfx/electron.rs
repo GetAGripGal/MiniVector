@@ -15,7 +15,7 @@ const ELECTRON_COMPUTE: &'static str = include_str!("../shaders/electron.wgsl");
 /// The parameters for the electron gun simulation
 #[derive(Debug, ShaderType, Clone)]
 pub struct ElectronParams {
-    pub point_amount: u32,
+    pub current_point: glam::Vec2,
     pub radius: f32,
     pub dim_factor: f32,
     pub screen_size: glam::Vec2,
@@ -192,8 +192,16 @@ impl ElectronRenderer {
             .queue
             .write_buffer(&self.buffers.points, 0, &buffer.into_inner());
 
+        // Update the point amount buffer
+        let point_amount = points.len() as u32;
+        wgpu_state
+            .queue
+            .write_buffer(&self.buffers.point_amount, 0, &point_amount.to_le_bytes());
+
         // Recreate the params buffer
-        self.params.point_amount = points.len() as u32;
+        if let Some(point) = points.iter().last() {
+            self.params.current_point = (point.x, point.y).into();
+        }
         let params = self.params.clone();
         self.update_params(wgpu_state, &params)?;
         Ok(())
