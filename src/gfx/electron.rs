@@ -1,7 +1,12 @@
 use encase::{ShaderType, StorageBuffer, UniformBuffer};
 use wgpu::util::DeviceExt;
 
-use super::{display_colors::DisplayColors, framebuffer::FrameBuffer, point::Point, WgpuState};
+use super::{
+    display_colors::DisplayColors,
+    framebuffer::FrameBuffer,
+    point::{self, Point},
+    WgpuState,
+};
 use crate::{color::Color, result::Result};
 
 /// The workgroup size for the compute shader
@@ -518,7 +523,7 @@ fn create_point_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayou
                 binding: 0,
                 visibility: wgpu::ShaderStages::COMPUTE,
                 ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                    sample_type: wgpu::TextureSampleType::Uint,
                     view_dimension: wgpu::TextureViewDimension::D1,
                     multisampled: false,
                 },
@@ -613,6 +618,44 @@ fn create_param_bind_group(
     })
 }
 
+// /// Pack x and y into a single u32 (must be normalized)
+// fn pack_floats(x: f32, y: f32, screen_size: (f32, f32)) -> u32 {
+//     let x_normalized = (x / screen_size.0).clamp(0.0, 1.0);
+//     let y_normalized = (y / screen_size.1).clamp(0.0, 1.0);
+
+//     let x_scaled = (x_normalized * 0xFFFF as f32) as u32;
+//     let y_scaled = (y_normalized * 0xFFFF as f32) as u32;
+
+//     (x_scaled << 16) | (y_scaled & 0xFFFF)
+// }
+
+/// Pack x and y into a single u32 (with an additional reserved byte as flag)
+fn pack_point(x: f32, y: f32, power: u32, screen_size: (f32, f32)) -> u32 {
+    // Normalize and clamp the floats
+    let x_normalized = (x / screen_size.0).clamp(0.0, 1.0);
+    let y_normalized = (y / screen_size.1).clamp(0.0, 1.0);
+
+    // Scale the normalized floats to fit into 14 bits
+    let x_scaled = (x_normalized * 0x3FFF as f32) as u32; // 0x3FFF = 14 bits set to 1
+    let y_scaled = (y_normalized * 0x3FFF as f32) as u32;
+
+    // Pack the floats into a u32 with the flag byte at the end
+    ((x_scaled << 18) | (y_scaled << 4)) | power
+}
+
+fn unpack_point(data: u32, screen_size: (f32, f32)) -> (f32, f32, u32) {
+    // Extract x, y, and power from the packed u32
+    let x_scaled = (data >> 18) & 0x3FFF; // Extracting 14 bits for x
+    let y_scaled = (data >> 4) & 0x3FFF; // Extracting 14 bits for y
+    let power = data & 0x1; // Extracting power
+
+    // Scale x and y back to their original values
+    let x = (x_scaled as f32 / 0x3FFF as f32) * screen_size.0;
+    let y = (y_scaled as f32 / 0x3FFF as f32) * screen_size.1;
+
+    (x, y, power)
+}
+
 /// Create a texture from the point buffer
 pub fn create_point_lookup_texture(
     device: &wgpu::Device,
@@ -622,14 +665,24 @@ pub fn create_point_lookup_texture(
 ) -> (wgpu::Texture, wgpu::TextureView) {
     // Normalize the points to rgb values representing (x, y, power)
     let normalize = |point: Point| {
-        let x = point.x / screen_size.0;
-        let y = point.y / screen_size.1;
-        [x, y, point.power as f32, 0.0]
+        let packed = pack_point(point.x, point.y, point.power, screen_size);
+        packed
     };
-    let mut data = points.iter().map(|p| normalize(*p)).collect::<Vec<_>>();
+    let mut data = Vec::with_capacity(points.len());
+    data.extend(points.iter().map(|p| normalize(*p)));
+
     // If data is empty. Add a blank point to avoid creating a 0 size texture
     if data.len() <= 0 {
-        data.push([0.0, 0.0, 0.0, 1.0]);
+        data.push(0);
+    }
+
+    // If the data limit is reached, shrink the data buffer
+    // NOTE(GetAGripGal): There should be a way to increase this by turning the texture into a D2 texture.
+    // But for now this is easiest
+    const MAX_SIZE: usize = 8192;
+    if data.len() > MAX_SIZE {
+        data = data[0..MAX_SIZE].to_vec();
+        log::warn!("Maximum amount of points reached! Some points may be removed");
     }
 
     let texture = device.create_texture_with_data(
@@ -644,11 +697,11 @@ pub fn create_point_lookup_texture(
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D1,
-            format: wgpu::TextureFormat::Rgba32Float,
+            format: wgpu::TextureFormat::R32Uint,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[wgpu::TextureFormat::Rgba32Float],
+            view_formats: &[wgpu::TextureFormat::R32Uint],
         },
-        wgpu::util::TextureDataOrder::LayerMajor,
+        wgpu::util::TextureDataOrder::MipMajor,
         &bytemuck::cast_slice(&data),
     );
 

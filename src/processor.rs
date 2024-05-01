@@ -1,10 +1,9 @@
-use std::collections::VecDeque;
-
 use crate::{
     gfx::point::Point,
     instruction::{Instruction, InstructionKind},
 };
 
+use bytemuck::Contiguous;
 use slice_deque::SliceDeque;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -41,21 +40,23 @@ impl InstructionProcessor {
     pub fn process(&mut self) {
         let n_to_process = if self.instructions_per_frame > 0 {
             self.instructions_per_frame
+                .min(self.instruction_buffer.len())
         } else {
             self.instruction_buffer.len()
         };
-        self.points.clear();
-        for _ in 0..n_to_process {
-            // If the instruction buffer is empty, break
-            if self.instruction_buffer.is_empty() {
-                break;
-            }
 
-            let instruction = self.instruction_buffer[0].clone();
-            self.process_instruction(instruction);
-            // Remove the first instruction
-            self.instruction_buffer.pop_front();
+        // Batch processing of instructions
+        let mut power = self.power;
+        let mut points = SliceDeque::new();
+        for instruction in self.instruction_buffer.drain(..n_to_process) {
+            Self::process_instruction(instruction, &mut power, &mut points);
         }
+        // Append the previous last point to the new points list
+        if let Some(last_point) = self.points.last() {
+            points.push_front(*last_point);
+        }
+        self.points = points;
+        self.power = power;
     }
 
     /// Return the points
@@ -65,23 +66,26 @@ impl InstructionProcessor {
 
     /// Process a single instruction and return the point the gun has moved to.
     /// Return true if a point was processed, false otherwise.
-    fn process_instruction(&mut self, instruction: Instruction) -> bool {
+    fn process_instruction(
+        instruction: Instruction,
+        power: &mut bool,
+        points: &mut SliceDeque<Point>,
+    ) -> bool {
         match instruction.kind {
             InstructionKind::Clear => {
-                self.points.clear();
-                self.should_clear = true;
+                // self.should_clear = true;
             }
             InstructionKind::MoveTo => {
                 let mut point = Point::from(instruction.data);
-                point.power = if self.power { 1 } else { 0 };
-                self.points.push_back(point);
+                point.power = power.into_integer() as u32;
+                points.push_back(point);
                 return true;
             }
             InstructionKind::PowerOn => {
-                self.power = true;
+                *power = true;
             }
             InstructionKind::PowerOff => {
-                self.power = false;
+                *power = false;
             }
         }
         false
@@ -89,11 +93,11 @@ impl InstructionProcessor {
 
     /// Return if the renderer should be cleared. If so, return true and set the flag to false.
     pub fn should_clear(&mut self) -> bool {
-        if self.should_clear {
-            self.should_clear = false;
-            true
-        } else {
-            false
-        }
+        self.should_clear
+            .then(|| {
+                self.should_clear = false;
+                true
+            })
+            .unwrap_or(false)
     }
 }

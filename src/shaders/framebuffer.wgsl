@@ -80,7 +80,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     if crt_uv.x < 0.0 || crt_uv.x > 1.0 || crt_uv.y < 0.0 || crt_uv.y > 1.0 {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
-    let base = smooth_pixel(t_diffuse, s_diffuse, crt_uv, textureDimensions(t_diffuse), 1.0);
+    let base = smooth_pixel(t_diffuse, s_diffuse, crt_uv, textureDimensions(t_diffuse), .40);
     var color = crt_noise(in.uv, 0.1) * 0.1 + base;
     return color;
 }

@@ -102,7 +102,7 @@ async fn request_device(adapter: &wgpu::Adapter) -> anyhow::Result<(wgpu::Device
     let (device, queue) = adapter
         .request_device(
             &wgpu::DeviceDescriptor {
-                required_features: wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
+                required_features: wgpu::Features::SHADER_F16,
                 required_limits: if cfg!(target_arch = "wasm32") {
                     // On wasm we must use the minimum limits
                     wgpu::Limits {

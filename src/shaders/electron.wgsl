@@ -37,7 +37,7 @@ var<storage, read> display_colors: DisplayColors;
 
 // The buffer of points of the electron gun
 @group(2) @binding(0)
-var point_texture: texture_1d<f32>;
+var point_texture: texture_1d<u32>;
 @group(2) @binding(1)
 var<storage, read> points_amount: u32;
 
@@ -47,11 +47,18 @@ var<uniform> parameters: Parameters;
 
 /// Read a point from the lookup texture
 fn read_point(index: u32) -> Point {
-    let data: vec4<f32> = textureLoad(point_texture, index, 0);
+    let compressed_data: vec4<u32> = textureLoad(point_texture, index, 0);
+    let packed_position: u32 = compressed_data.r;
+
+    // Extract the bits of x, y, and power from the packed value
+    let x = f32((packed_position >> 18) & 0x3FFF) / f32(0x3FFF); // 0x3FFF = 14 bits set to 1
+    let y = f32((packed_position >> 4) & 0x3FFF) / f32(0x3FFF);
+    let power = u32((packed_position & 0x1));
+
     var out: Point;
-    out.x = data.r;
-    out.y = data.g;
-    out.power = u32(data.b);
+    out.x = x;
+    out.y = y;
+    out.power = power;
     return out;
 }
 
@@ -66,15 +73,10 @@ fn project_point(point: vec2<f32>, screen_size: vec2<f32>, resolution: vec2<f32>
 }
 
 /// Normalize the screen radius to the texture radius
-fn normalize_screen_radius(screen_radius: f32, screen_size: vec2<f32>) -> f32 {
-    // Calculate the diagonal length of the screen
-    let diagonal_length = sqrt(screen_size.x * screen_size.x + screen_size.y * screen_size.y);
-
-    // Calculate the maximum possible radius (half the diagonal length)
-    let max_radius = diagonal_length / 2.0;
-
-    // Normalize the screen radius to the range [0.0, 1.0]
-    return screen_radius / max_radius;
+fn normalize_screen_radius(screen_radius: f32, screen_size: vec2<f32>, texture_size: vec2<f32>) -> f32 {
+    let max_texture_dimension = max(texture_size.x, texture_size.y);
+    let normalized_radius = screen_radius / max_texture_dimension;
+    return normalized_radius;
 }
 
 /// Check if a point is between two other points
@@ -105,10 +107,6 @@ fn is_point_between_two_points(point: vec2<f32>, a: vec2<f32>, b: vec2<f32>, rad
 
 /// Check if a pixel should be drawn
 fn should_draw(pixel_coords: vec2<f32>, electron_gun_radius: f32) -> bool {
-    if points_amount <= 1u {
-        return false;
-    }
-
     // If the point is in between the point behind it reached this frame, draw it
     for (var i: u32 = 0u; i < points_amount; i = i + 1u) {
         let point = read_point(i);
@@ -205,41 +203,41 @@ fn dim_srgb(color: vec3<f32>, amount: f32) -> vec3<f32> {
 fn main(
     @builtin(global_invocation_id) gid: vec3<u32>
 ) {
-    let resolution = textureDimensions(t_diffuse);
-    let aspect = f32(resolution.x) / f32(resolution.y);
-    let screen_aspect = f32(parameters.screen_size.x / parameters.screen_size.y);
     let coords = vec2<i32>(gid.xy);
-    let uv = vec2<f32>(coords) / vec2<f32>(resolution);
-
     let dim = 1.0 - parameters.dim_factor;
 
+    // Dim the pixel
     var color = textureLoad(t_diffuse, coords, 0);
     if color.a > 0.0 {
         color = vec4<f32>(dim_srgb(color.rgb, dim), color.a);
         color.a = color.a * dim;
     }
 
+    // Early return if not enough points present
+    if points_amount <= 1u {
+        textureStore(output_texture, coords, color);
+        return;
+    }
+
+    let resolution = textureDimensions(t_diffuse);
+    let aspect = f32(resolution.x) / f32(resolution.y);
+    let screen_aspect = f32(parameters.screen_size.x / parameters.screen_size.y);
+    let uv = vec2<f32>(coords) / vec2<f32>(resolution);
+
     // Get the current point
-    let current_point = parameters.current_point;
-    let radius_normalized = normalize_screen_radius(parameters.radius, parameters.screen_size);
+    // let current_point = parameters.current_point;
+    let radius_normalized = normalize_screen_radius(parameters.radius, parameters.screen_size, vec2<f32>(resolution));
     let should_draw = should_draw(uv, radius_normalized);
 
-    let projected_point = normalize_point(vec2<f32>(coords), parameters.screen_size);
-    let projected_current = normalize_point(vec2<f32>(current_point.x, current_point.y), parameters.screen_size);
-    let difference_with_current = projected_point - floor(projected_current);
-    let dist_to_current = length(difference_with_current) / aspect;
-
-    // if gid.x < points_amount {
-    //     let point = read_point(gid.x);
-    //     textureStore(output_texture, coords, vec4<f32>(point.x * 10, point.y * 10, f32(point.power), 1.0));
-    // }
-
+    let current_point = read_point(points_amount - 1);
+    let dist_to_current = distance(uv, vec2<f32>(current_point.x, current_point.y));
+    let is_current = (dist_to_current < radius_normalized) && current_point.power > 0;
 
     if should_draw {
-        color += vec4<f32>(display_colors.secondary, 1.0);
+        color = vec4<f32>(display_colors.secondary, 1.0);
 
-        // // Add dim in current frame by checking the distance to the current point and interpolating the dim
-        let d = dim * dist_to_current;
+        // Add dim in current frame by checking the distance to the current point and interpolating the dim
+        var d = (dim * 1.0 - dist_to_current / aspect);
         if d > 0.0 {
             color = vec4<f32>(dim_srgb(color.rgb, d), color.a);
             color.a = color.a * d;
@@ -247,6 +245,6 @@ fn main(
         // Clamp the color to 0.0 - 1.0
         color = clamp(color, vec4<f32>(0.0), vec4<f32>(1.0));
     }
-    // color = vec4<f32>(dist_to_current, 0.0, 0.0, 1.0);
+    // color = vec4<f32>(dist_to_current, dist_to_current, 0.0, 1.0);
     textureStore(output_texture, coords, color);
 }
