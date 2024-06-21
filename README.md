@@ -61,8 +61,8 @@ Instructions are 40 bits of data.
 The following is a list of supported instructions and their additional data
 
 ```
-- 0x00000000 : Clear display      [No Data]
-- 0x00000001 : Move to position   [X: ii6, Y: i16]
-- 0x00000010 : Electron gun on    [No Data]
-- 0x00000011 : Electron gun off   [No Data]
+- 0b00 : Clear display      [No Data]
+- 0b01 : Move to position   [X: ii6, Y: i16]
+- 0b10 : Electron gun on    [No Data]
+- 0b11 : Electron gun off   [No Data]
 ```
