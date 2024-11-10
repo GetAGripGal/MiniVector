@@ -40,7 +40,7 @@ options:
     window:
         -w,  --window <width> <height>          Set the window size
             default: 1280 720
-        -f   --fullscreen                       Set the window to fullscreen
+        -f   --fullscreen                       Set the window to fullscreen [Can be toggled with F11]
     display
         -r,  --resolution <width> <height>      Set the resolution
             default: 1920 1080
