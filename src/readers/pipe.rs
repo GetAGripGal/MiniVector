@@ -183,7 +183,7 @@ pub fn create_pipe(pipe: &str, _: usize) -> Result<()> {
 
     let path = std::path::Path::new(pipe);
     if !path.exists() {
-        nix::unistd::mkfifo(path, stat::Mode::empty())
+        nix::unistd::mkfifo(path, stat::Mode::S_IRUSR | stat::Mode::S_IWUSR)
             .map_err(|e| anyhow::anyhow!("Failed to create instruction pipe{}", e))?;
     }
 

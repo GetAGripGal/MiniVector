@@ -28,7 +28,7 @@ usage: minivector [options]
                 default (unix): /tmp/mv_pipe
                 default (windows): \\\\.\\pipe\\mv_pipe
             -ep,  --event-pipe <pipe>               Set the pipe to send the events (none by default)
-            -e,  --instruction-per-frame <n>        Set the number of instructions per frame [If not set, it will execute all instructions in the buffer at once]
+            -ifr,  --instruction-per-frame <n>      Set the number of instructions per frame [If not set, it will execute all instructions in the buffer at once]
             -fr, --frame-rate <n>                   Set the frame rate
 ";
 
@@ -59,7 +59,6 @@ fn main() -> Result<()> {
 /// Run minivector
 async fn run(config: Config) -> Result<()> {
     let context = Context::new(config).await?;
-    // context.push_instructions(INSTRUCTIONS);
     context.run().await
 }
 
@@ -170,16 +169,16 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
                 config.event_pipe = Some(value.to_string());
                 i += 2;
             }
-            "-e" | "--instruction-per-frame" => {
+            "-ifr" | "--instructions-per-frame" => {
                 let value = args
                     .get(i + 1)
                     .ok_or(InvalidArgumentError::InvalidInstructionPerFrame)?;
-                config.instruction_per_frame = value
+                config.instructions_per_frame = value
                     .parse()
                     .map_err(|_| InvalidArgumentError::InvalidInstructionPerFrame)?;
                 i += 2;
             }
-            "-fps" | "--frame-rate" => {
+            "-fr" | "--frame-rate" => {
                 let value = args
                     .get(i + 1)
                     .ok_or(InvalidArgumentError::InvalidFrameRate)?;

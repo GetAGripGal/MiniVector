@@ -25,7 +25,7 @@ impl NamedPipeWriter {
             nix::fcntl::OFlag::O_WRONLY | nix::fcntl::OFlag::O_NONBLOCK,
             Mode::empty(),
         )
-        .map_err(|e| anyhow::anyhow!("Failed to open named event pipe: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Failed to open named event pipe \"{}\": {}", path, e))?;
 
         Ok(Self { file })
     }

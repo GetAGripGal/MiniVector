@@ -5,6 +5,20 @@ Written in rust and wgpu.
 
 ![minivector_demo](docs/radar.gif)
 
+## Examples
+
+For examples of minivector in action, there are some tests:
+* [Bad Apple](docs/badapple.md)
+
+## OS support
+
+Right now only unix systems are supported. Windows support is planned in the future.
+Wasm32 support was inteded, but is currently not possible since some native-only wgpu features are utilized.
+
+## Performance
+
+Minivector is very gpu heavy, for processing a lot of points a mid-range gpu is reccomended.
+
 ## Usage
 
 Minivector will create a pipe at the specified location.

@@ -6,7 +6,7 @@ use crate::{
         writer::{pipe::NamedPipeWriter, EventWriter},
         Event,
     },
-    gfx::{electron::ElectronParams, point::Point},
+    gfx::electron::ElectronParams,
     instruction,
     processor::InstructionProcessor,
     readers::{pipe::NamedPipeReader, InstructionReader},
@@ -79,7 +79,7 @@ impl Context {
         let mut electron_renderer = ElectronRenderer::new(
             &wgpu_state,
             &frame_buffer,
-            (config.instruction_per_frame + 1) as usize,
+            (config.instructions_per_frame + 1) as usize,
             &ElectronParams {
                 current_point: (0.0, 0.0).into(),
                 radius: config.radius,
@@ -90,14 +90,15 @@ impl Context {
         )?;
         electron_renderer.set_display_colors(&wgpu_state, config.primary, config.secondary)?;
 
-        let processor = InstructionProcessor::new(config.instruction_per_frame as usize);
+        let processor = InstructionProcessor::new(config.instructions_per_frame as usize);
 
         // Determine the reader
+        #[cfg(not(target_arch = "wasm32"))]
         let reader = {
             if let Some(pipe) = &config.instruction_pipe {
                 let result = InstructionReader::NamedPipe(NamedPipeReader::new(
                     pipe,
-                    config.instruction_per_frame as usize,
+                    config.instructions_per_frame as usize,
                 )?);
                 Some(Arc::new(Mutex::new(result)))
             } else {
@@ -109,6 +110,7 @@ impl Context {
         let event_manager = EventManager::new();
 
         // Determine the event writer
+        #[cfg(not(target_arch = "wasm32"))]
         let event_writer = {
             if let Some(pipe) = &config.event_pipe {
                 let result = EventWriter::NamedPipe(NamedPipeWriter::new(&pipe)?);

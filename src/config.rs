@@ -9,7 +9,7 @@ const DEFAILT_WINDOW_HEIGHT: u32 = 720;
 const DEFAULT_RESOLUTION_WIDTH: u32 = 1920;
 const DEFAULT_RESOLUTION_HEIGHT: u32 = 1080;
 
-const DEFAULT_INSTRUCTION_PER_FRAME: u32 = 500;
+const DEFAULT_INSTRUCTIONS_PER_FRAME: u32 = 500;
 const DEFAULT_FRAME_RATE: u32 = 144;
 
 const DEFAULT_PRIMARY_COLOR: Color = Color::new(40, 40, 40);
@@ -65,7 +65,7 @@ pub struct Config {
     pub dim_factor: f32,
     pub instruction_pipe: Option<String>,
     pub event_pipe: Option<String>,
-    pub instruction_per_frame: u32,
+    pub instructions_per_frame: u32,
     pub frame_rate: u32,
     pub icon: Icon,
 }
@@ -82,7 +82,7 @@ pub struct Config {
     pub(crate) secondary: Color,
     pub(crate) radius: f32,
     pub(crate) dim_factor: f32,
-    pub(crate) instruction_per_frame: u32,
+    pub(crate) instructions_per_frame: u32,
     pub(crate) frame_rate: u32,
 }
 
@@ -90,19 +90,26 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             fullscreen: false,
-            window: Resolution::new(DEFAULT_WINDOW_WIDTH, DEFAILT_WINDOW_HEIGHT),
-            resolution: Resolution::new(DEFAULT_RESOLUTION_WIDTH, DEFAULT_RESOLUTION_HEIGHT),
-            screen_size: glam::Vec2::new(
-                DEFAULT_RESOLUTION_WIDTH as f32,
-                DEFAULT_RESOLUTION_HEIGHT as f32,
-            ),
+            window: Resolution {
+                width: DEFAULT_WINDOW_WIDTH,
+                height: DEFAILT_WINDOW_HEIGHT,
+            },
+            resolution: Resolution {
+                width: DEFAULT_RESOLUTION_WIDTH,
+                height: DEFAULT_RESOLUTION_HEIGHT,
+            },
             primary: DEFAULT_PRIMARY_COLOR,
             secondary: DEFAULT_SECONDARY_COLOR,
             radius: DEFAULT_RADIUS,
             dim_factor: DEFAULT_DIM_FACTOR,
-            instruction_per_frame: DEFAULT_INSTRUCTION_PER_FRAME,
+            instructions_per_frame: DEFAULT_INSTRUCTIONS_PER_FRAME,
             frame_rate: DEFAULT_FRAME_RATE,
 
+            #[cfg(not(target_arch = "wasm32"))]
+            screen_size: glam::Vec2::new(
+                DEFAULT_RESOLUTION_WIDTH as f32,
+                DEFAULT_RESOLUTION_HEIGHT as f32,
+            ),
             #[cfg(not(target_arch = "wasm32"))]
             instruction_pipe: None,
             #[cfg(not(target_arch = "wasm32"))]
@@ -223,15 +230,15 @@ impl Config {
     /// Getter for the instruction per frame
     #[cfg(target_arch = "wasm32")]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn instruction_per_frame(&self) -> u32 {
-        self.instruction_per_frame
+    pub fn instructions_per_frame(&self) -> u32 {
+        self.instructions_per_frame
     }
 
     /// Setter for the instruction per frame
     #[cfg(target_arch = "wasm32")]
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
-    pub fn set_instruction_per_frame(&mut self, value: u32) {
-        self.instruction_per_frame = value;
+    pub fn set_instructions_per_frame(&mut self, value: u32) {
+        self.instructions_per_frame = value;
     }
 
     /// Getter for the frame rate
@@ -239,20 +246,6 @@ impl Config {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn frame_rate(&self) -> u32 {
         self.frame_rate
-    }
-
-    /// Getter for the pipe
-    #[cfg(target_arch = "wasm32")]
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn pipe(&self) -> String {
-        self.pipe.clone()
-    }
-
-    /// Setter for the pipe
-    #[cfg(target_arch = "wasm32")]
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(setter))]
-    pub fn set_pipe(&mut self, value: &str) {
-        self.pipe = value.to_string();
     }
 }
 
