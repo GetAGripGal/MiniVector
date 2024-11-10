@@ -106,7 +106,7 @@ Events are 74 bits of data.
      |- 8-bit Instruction   |- 64-bit Additional Data
 ```
 
-For an example of how to use event types, take a look at the pong demo: [pong](docs/pong.md)
+For an example of how to use event types, take a look at the [pong demo](docs/pong.md)
 
 ### Event Types
 
