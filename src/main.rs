@@ -9,32 +9,41 @@ const DEFAULT_PIPE: &'static str = "\\\\.\\pipe\\mv_pipe";
 const DEFAULT_PIPE: &'static str = "/tmp/mv_pipe";
 
 /// The usage text
-const USAGE_TEXT: &str = r"
-usage: minivector [options]
-    options:
-        window:
-            -w,  --window <width> <height>          Set the window siz
-            -f   --fullscreen                       Set the window to fullscree
-        display
-            -r,  --resolution <width> <height>      Set the resolutio
-            -p,  --primary <color_hex>              Set the primary color
-            -s,  --secondary <color_hex>            Set the secondary color
-            -ss, --screen-size <width> <height>     Set the screen size [By default it is the same as the resolution]
-        gun
-            -rg, --radius <radius>                  Set the radius of the electron gun
-            -df, --dim-factor <factor>              Set the dim factor per frame
-        executor:
-            -ip,  --instruction-pipe <pipe>         Set the pipe to read the instructions 
-                default (unix): /tmp/mv_pipe
-                default (windows): \\\\.\\pipe\\mv_pipe
-            -ep,  --event-pipe <pipe>               Set the pipe to send the events (none by default)
-            -ifr,  --instruction-per-frame <n>      Set the number of instructions per frame [If not set, it will execute all instructions in the buffer at once]
-            -fr, --frame-rate <n>                   Set the frame rate
-";
+const USAGE_TEXT: &str = r"usage: minivector [options]
+options:
+    window:
+        -w,  --window <width> <height>          Set the window size
+            default: 1280 720
+        -f   --fullscreen                       Set the window to fullscreen
+    display
+        -r,  --resolution <width> <height>      Set the resolution
+            default: 1920 1080
+        -p,  --primary <color_hex>              Set the primary (background) color 
+            default: 282828
+        -s,  --secondary <color_hex>            Set the secondary (background) color
+            default: 33ff64
+        -ss, --screen-size <width> <height>     Set the screen size 
+            default: [same as the resolution]
+    gun
+        -rg, --radius <radius>                  Set the radius of the electron gun
+            default: 1.0
+        -df, --dim-factor <factor>              Set the dim factor per frame
+            default: 0.3
+    executor:
+        -ip,  --instruction-pipe <pipe>         Set the pipe to read the instructions 
+            default (unix): /tmp/mv_pipe
+            default (windows): \\\\.\\pipe\\mv_pipe
+        -ep,  --event-pipe <pipe>               Set the pipe to send the events
+            defaylt: none
+        -ifr,  --instruction-per-frame <n>      Set the number of instructions per frame [If 0, it will execute all instructions in the buffer in one frame]
+            default: 500
+        -fr, --frame-rate <n>                   Set the frame rate
+            default: vsync";
 
 /// The error type for invalid arguments
 #[derive(Debug)]
 pub enum InvalidArgumentError {
+    UnknownOption(String),
     InvalidWindowSize,
     InvalidResolution,
     InvalidPrimaryColor,
@@ -192,7 +201,9 @@ pub fn read_args(args: Vec<String>) -> std::result::Result<Config, InvalidArgume
                 std::process::exit(0);
             }
             _ => {
-                i += 1;
+                return Err(InvalidArgumentError::UnknownOption(
+                    args[i].as_str().to_string(),
+                ));
             }
         }
     }
@@ -216,6 +227,7 @@ impl std::fmt::Display for InvalidArgumentError {
                 write!(f, "Invalid instruction per frame")
             }
             InvalidArgumentError::InvalidFrameRate => write!(f, "Invalid frame rate"),
+            InvalidArgumentError::UnknownOption(option) => write!(f, "Invalid option: {}", option),
         }
     }
 }

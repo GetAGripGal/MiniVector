@@ -6,7 +6,9 @@ I my managed to achieve this using a set of python scripts that transformed the 
 In order to encode the frames each frame is reserved 800 points. Meaning each 800 frame is another frame.
 
 ## Result
-<iframe width="560" height="315" src="https://www.youtube.com/embed/GKYqRum3V_0?si=jNDFF7cTJBmohi52" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+The result of the bad apple demo can be viewed on my youtube page:
+https://www.youtube.com/embed/GKYqRum3V_0?si=jNDFF7cTJBmohi52
 
 ## How to run
 The resulting points are stored in `test/animations/badapple.mv`.

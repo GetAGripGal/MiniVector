@@ -1,5 +1,6 @@
 import ctypes
 from dataclasses import dataclass
+from io import BufferedReader
 import os
 import math
 import time
@@ -12,12 +13,12 @@ EVENT_PIPE = "/tmp/mv_pong_pipe"
 EVENT_SIZE = 9
 
 # Define the event types
-FRAME_FINISHED = 0
-KEY_PRESSED = 1
-KEY_RELEASED = 2
-MOUSE_MOVED = 3
-MOUSE_PRESSED = 4
-MOUSE_RELEASED = 5
+EVENT_FRAME_FINISHED = 0
+EVENT_KEY_PRESSED = 1
+EVENT_KEY_RELEASED = 2
+EVENT_MOUSE_MOVED = 3
+EVENT_MOUSE_PRESSED = 4
+EVENT_MOUSE_RELEASED = 5
 
 # Define the instruction types
 MV_INSTRUCTION_CLEAR = 0
@@ -56,7 +57,7 @@ class Instruction:
 class Event:
     """ An event to be received from minivector """
     type_byte: ctypes.c_uint8
-    value: ctypes.c_uint32
+    value: ctypes.c_uint64
 
     @classmethod
     def from_bytes(cls, data: bytes):
@@ -96,11 +97,11 @@ game = {
 }
 
 
-def process_events(event_pipe):
+def process_events(event_pipe: BufferedReader):
     """ Process the events that came in this frame. Break when the frame is finished """
     frame_finished = False
     while not frame_finished:
-        data = event_pipe.read()
+        data = event_pipe.read(EVENT_SIZE)
         if not data:
             continue
 
@@ -110,15 +111,14 @@ def process_events(event_pipe):
 
         for event in events:
             event = Event.from_bytes(data)
-            if event.type_byte == KEY_PRESSED:
+            if event.type_byte == EVENT_KEY_PRESSED:
                 if event.value not in keys_down:
                     keys_down.append(event.value)
-            elif event.type_byte == KEY_RELEASED:
+            elif event.type_byte == EVENT_KEY_RELEASED:
                 if event.value in keys_down:
                     keys_down.remove(event.value)
-            if event.type_byte == FRAME_FINISHED:
+            if event.type_byte == EVENT_FRAME_FINISHED:
                 frame_finished = True
-
 
 def update_game(delta):
     """ Update the game state """

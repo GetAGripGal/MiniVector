@@ -15,7 +15,7 @@ const DEFAULT_FRAME_RATE: u32 = 144;
 const DEFAULT_PRIMARY_COLOR: Color = Color::new(40, 40, 40);
 const DEFAULT_SECONDARY_COLOR: Color = Color::new(51, 255, 100);
 
-const DEFAULT_RADIUS: f32 = 2.0;
+const DEFAULT_RADIUS: f32 = 1.0;
 const DEFAULT_DIM_FACTOR: f32 = 0.3;
 
 const MINIVECTOR_ICON: &'static [u8] = include_bytes!("../assets/icon.png");

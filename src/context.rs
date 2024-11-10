@@ -245,7 +245,7 @@ impl Context {
             WindowEvent::RedrawRequested => {
                 self.frame_timer.start();
 
-                // Process the instructions
+                // Processw the instructions
                 {
                     let mut instruction_buffer = self.instruction_buffer.lock().unwrap();
                     self.processor.push_instructions(&instruction_buffer);
