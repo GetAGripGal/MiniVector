@@ -18,7 +18,8 @@ Wasm32 support was inteded, but is currently not possible since some native-only
 
 ## Performance
 
-Minivector is very gpu heavy, for processing a lot of points a mid-range gpu is reccomended.
+Minivector is very gpu heavy. 
+If you are processing a lot of points, a mid-range gpu is reccomended.
 
 ## Usage
 
@@ -106,7 +107,7 @@ Events are 74 bits of data.
      |- 8-bit Instruction   |- 64-bit Additional Data
 ```
 
-For an example of how to use event types, take a look at the [pong demo](docs/pong.md)
+For an example of how to use event types, take a look at the [pong demo](docs/pong.md).
 
 ### Event Types
 
