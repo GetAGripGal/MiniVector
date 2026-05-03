@@ -1,3 +1,6 @@
+# MOVED REPO
+This repository has been moved to my own git server at: [https://git.getagripgal.nl/GetAGripGal/MiniVector](https://git.getagripgal.nl/GetAGripGal/MiniVector).
+
 # MiniVector
 
 A programmable XY vector display simulator.
